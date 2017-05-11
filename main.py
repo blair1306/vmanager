@@ -769,7 +769,8 @@ class PackageManager(object):
         self._refresh_installed_package_list()
 
         self._view.search_box.focus_set()
-        self._view.search_button.bind("<Return>", self.search)      # TODO: figure out why this doesn't work
+        self._view.search_box.bind("<Return>", self.search)
+        # self.bind("<Return>", self.search)      # TODO: figure out why this doesn't work
 
     def _set_commands(self):
         self._view.refresh_button.config(command=self.refresh_installed_package_list)
@@ -777,12 +778,14 @@ class PackageManager(object):
         self._view.uninstall_button.config(command=self.uninstall_packages)
         self._view.search_button.config(command=self.search)
 
-    def search(self):
+    def search(self, event=None):       # Tkinter pass event by default when calling callbacks
         search_phrase = self._view.search_box.get()
         if not search_phrase:
             return
 
         self._refresh_installed_package_list(search=search_phrase)
+
+        return "break"
 
     def uninstall_packages(self):
         device = self._device
