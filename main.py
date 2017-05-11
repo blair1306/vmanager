@@ -168,6 +168,12 @@ class ADB(object):
         command = "adb -s %s shell 'pm list packages %s'%s" % (device, t, search)
         Debug.debug(("command: ", command))
         packages_string = Shell.execute_output(command)
+        """ The original output is in this form:
+        package:com.chessking.android.learn.ctart4
+        package:com.netease.cloudmusic
+        package:tv.danmaku.bili
+        """
+        packages_string = packages_string.replace("package:", "")
         installed_package_list = packages_string.splitlines()
 
         return installed_package_list
