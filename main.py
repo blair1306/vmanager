@@ -18,14 +18,16 @@ import inspect
 
 
 def exit_if_fail(status, message):
-    if status == 0:
+    success = 0
+
+    if status == success:
         return
 
-    _Message.show_error(message)
+    Message.show_error(message)
     sys.exit(1)
 
 
-class _Debug(object):
+class Debug(object):
     DEBUG = True if '-d' in sys.argv[:] else False
 
     @staticmethod
@@ -35,15 +37,15 @@ class _Debug(object):
             use_print = kwargs["use_print"]
             del kwargs["use_print"]
 
-        message = "%s: %s: " % _Debug._get_caller_name()
+        message = "%s: %s: " % Debug._get_caller_name()
         message += " ".join(map(repr, *args))
-        if not _Debug.DEBUG:
+        if not Debug.DEBUG:
             return
 
         if use_print:
             print message
         else:
-            _Message.show_info(title="debug", message=message)
+            Message.show_info(title="debug", message=message)
 
     @staticmethod
     def _get_caller_name():
@@ -58,7 +60,7 @@ class _Debug(object):
         return caller_of_caller, caller
 
 
-class _Shell(object):
+class Shell(object):
     SUCCESS = 0
     FAILED = 1
 
@@ -84,13 +86,13 @@ class _Shell(object):
         return output
 
 
-class _FileDialog(object):
+class FileDialog(object):
     @staticmethod
     def ask_open_filenames(*args, **kwargs):
         return tkFileDialog.askopenfilenames(*args, **kwargs)
 
 
-class _Message(object):
+class Message(object):
     @staticmethod
     def show_warning(message):
         tkMessageBox.showwarning(message=message)
@@ -108,12 +110,15 @@ class _Message(object):
         return tkMessageBox.askokcancel(message=message)
 
 
-class _ADBDeviceStatus(object):
+class ADBDeviceStatus(object):
     DEVICE = "device"
     OFFLINE = "offline"
 
 
-class _ADB(object):
+class ADB(object):
+    """
+    A simple wrapper of adb commands
+    """
     @staticmethod
     def get_device_dict():
         """
@@ -124,7 +129,7 @@ class _ADB(object):
         """
         device_dict = {}
 
-        _ADB._start_server_exit_if_fail()
+        ADB._start_server_exit_if_fail()
 
         """
         The output of "adb devices" would be: 
@@ -133,7 +138,7 @@ class _ADB(object):
         device1\toffline
         
         """
-        adb_devices_output = _Shell.execute_output("adb devices")
+        adb_devices_output = Shell.execute_output("adb devices")
         device_list = adb_devices_output.splitlines()[1: -1]
 
         if len(device_list) > 0:
@@ -141,31 +146,31 @@ class _ADB(object):
                 device, status = line.split('\t')
                 device_dict[device] = status
 
-        _Debug.debug(device_dict)
+        Debug.debug(device_dict)
 
         return device_dict
 
     @staticmethod
-    def get_installed_packages(device, third_party=True, search=""):
+    def get_installed_package_list(device, third_party=True, search=""):
         """
         
         :param device:
-        :param third_party: 
-        :param search: 
+        :param third_party: whether or not only includes third party apps
+        :param search: filter result with " | grep search"
         :return: List of installed packages.
         """
-        if _ADB._check_status(device):
+        if ADB._check_status(device):
             return
 
         t = "-3" if third_party else ""
         search = " | grep %s" % search if search else ""
 
         command = "adb -s %s shell 'pm list packages %s'%s" % (device, t, search)
-        _Debug.debug(("command: ", command))
-        packages_string = _Shell.execute_output(command)
-        installed_packages = packages_string.splitlines()
+        Debug.debug(("command: ", command))
+        packages_string = Shell.execute_output(command)
+        installed_package_list = packages_string.splitlines()
 
-        return installed_packages
+        return installed_package_list
 
     @staticmethod
     def install_packages(device, package_path_filename_list):
@@ -173,30 +178,41 @@ class _ADB(object):
         
         :return: 
         """
-        if _ADB._check_status(device):
+        if ADB._check_status(device):
             return
 
         if not package_path_filename_list:
-            _Message.show_warning("Cancelled!")
+            Message.show_warning("Cancelled!")
             return
 
-        name_list = map(_ADB._extract_filename, package_path_filename_list)
+        name_list = map(ADB._extract_filename, package_path_filename_list)
         package_name_list_string = "    ".join(name_list)
 
-        if not _Message.ask_ok_cancel("Install These Apps? %s" % package_name_list_string):
-            _Message.show_info("Installation Cancelled.")
+        if not Message.ask_ok_cancel("Install These Apps? %s" % package_name_list_string):
+            Message.show_info("Installation Cancelled.")
             return
 
         status_dict = {}
         for path_name in package_path_filename_list:
-            status_dict[path_name] = _ADB._install_package(device, path_name)
+            status_dict[path_name] = ADB._install_package(device, path_name)
+
+        success_list = []
+        failure_list = []
 
         for path_name, status in status_dict.iteritems():
-            name = _ADB._extract_filename(path_name)
-            if status == _Shell.SUCCESS:
-                _Message.show_info("%s Installed!" % name)
-            if status == _Shell.FAILED:
-                _Message.show_error("Installation failed: %s." % name)
+            name = ADB._extract_filename(path_name)
+            if status == Shell.SUCCESS:
+                success_list.append(name)
+            if status == Shell.FAILED:
+                failure_list.append(name)
+
+        success_list_string = " ".join(success_list)
+        if success_list_string:
+            Message.show_info("%s Installed!" % success_list_string)
+
+        failure_list_string = " ".join(failure_list)
+        if failure_list_string:
+            Message.show_error("Installation Failed for These Apps: %s" % failure_list_string)
 
     @staticmethod
     def uninstall_packages(device, package_list):
@@ -204,61 +220,77 @@ class _ADB(object):
         
         :return: 
         """
-        if _ADB._check_status(device):
+        if ADB._check_status(device):
             return
 
         if len(package_list) == 0:
-            _Message.show_warning("Please Select at Least One Package to Uninstall!")
+            Message.show_warning("Please Select at Least One Package to Uninstall!")
             return
 
         package_list_string = "    ".join(package_list)
-        if not _Message.ask_ok_cancel("Uninstall These Packages: %s?" % package_list_string):
-            _Message.show_info("Uninstallation Cancelled.")
+        if not Message.ask_ok_cancel("Uninstall These Packages: %s?" % package_list_string):
+            Message.show_info("Uninstallation Cancelled.")
             return
 
         status_dict = {}
         for package in package_list:
-            status_dict[package] = _ADB._uninstall_package(device, package)
+            status_dict[package] = ADB._uninstall_package(device, package)
+
+        success_list = []
+        failure_list = []
 
         for package, status in status_dict.iteritems():
-            if status == _Shell.SUCCESS:
-                _Message.show_info("%s Uninstalled!" % package)
-            if status == _Shell.FAILED:
-                _Message.show_error("Uninstallation failed for %s!" % package)
+            if status == Shell.SUCCESS:
+                success_list.append(package)
+            if status == Shell.FAILED:
+                failure_list.append(package)
+
+        success_list_string = " ".join(success_list)
+        if success_list_string:
+            Message.show_info("%s Uninstalled!" % success_list_string)
+
+        failure_list_string = " ".join(failure_list)
+        if failure_list_string:
+            Message.show_error("Uninstallation Failed for These Packages: %s" % failure_list_string)
 
     @staticmethod
     def _check_status(device):
         """
-        Check if there is a device that _ADB holds as default transport.
+        Check if device exists and whether is operable.
         :return: True if device doesn't exit or is inoperable.
         """
         if device is None:
-            _Message.show_error("Please Select One Device.")
+            Message.show_error("No Device Selected.")
             return True
 
-        device_dict = _ADB.get_device_dict()
+        device_dict = ADB.get_device_dict()
         if device not in device_dict:
-            _Message.show_error("Device %s Doesn't Exist." % device)
+            Message.show_error("Device %s Doesn't Exist." % device)
             return True
 
         status = device_dict[device]
-        if status == _ADBDeviceStatus.OFFLINE:
-            _Message.show_error("%s is Offline!" % device)
+        if status == ADBDeviceStatus.OFFLINE:
+            Message.show_error("%s is Offline!" % device)
             return True
 
         return False
 
     @staticmethod
     def _start_server():
-        return _Shell.execute_status("adb start-server")
+        return Shell.execute_status("adb start-server")
 
     @staticmethod
     def _start_server_exit_if_fail():
-        exit_if_fail(_ADB._start_server(), "Couldn't start adb server.")
+        exit_if_fail(ADB._start_server(), "Couldn't start adb server.")
 
     @staticmethod
     def _extract_filename(full_path_name):
-        _, name = os.path.split(full_path_name)
+        """
+        Extract out the path of pathname
+        :param full_path_name: 
+        :return: google.apk with input /home/Download/google.apk
+        """
+        name = os.path.basename(full_path_name)
         return name
 
     @staticmethod
@@ -268,9 +300,9 @@ class _ADB(object):
         :param full_path_name: the full pathname of package to install: 
         :return: status of installation
         """
-        replace_existing_package = "-r"
-        command = "adb -s %s install %s %s" % (device, replace_existing_package, full_path_name)
-        return _Shell.execute_status(command)
+        replace_existing = "-r"
+        command = "adb -s %s install %s %s" % (device, replace_existing, full_path_name)
+        return Shell.execute_status(command)
 
     @staticmethod
     def _uninstall_package(device, package_name):
@@ -282,11 +314,11 @@ class _ADB(object):
               if the uninstallation fails.
         """
         command = "adb -s %s uninstall %s" % (device, package_name)
-        _Debug.debug((command, ))
-        return _Shell.execute_status(command)
+        Debug.debug((command,))
+        return Shell.execute_status(command)
 
 
-class _UI(object):
+class UI(object):
     LEFT = tk.LEFT
     BOTH = tk.BOTH
 
@@ -303,23 +335,23 @@ class _UI(object):
 
     @staticmethod
     def create_below(name, master, *args, **kwargs):
-        return _UI.create(name, master, side=None, *args, **kwargs)
+        return UI.create(name, master, side=None, *args, **kwargs)
 
     @staticmethod
     def create_left(name, master, *args, **kwargs):
-        side = _UI.LEFT
-        return _UI.create(name, master, side=side, *args, **kwargs)
+        side = UI.LEFT
+        return UI.create(name, master, side=side, *args, **kwargs)
 
     @staticmethod
     def create(name, master, side=None, *args, **kwargs):
-        factory = _UI.get_factory(name)
+        factory = UI.get_factory(name)
         if factory is None:
-            _Debug.debug("factory is None")
+            Debug.debug("factory is None")
             return None
 
         widget = factory(master, *args, **kwargs)
 
-        if name not in [_UI.TOPLEVEL]:    # toplevel widget doesn't have pack()
+        if name not in [UI.TOPLEVEL]:    # toplevel widget doesn't have pack()
             widget.pack(side=side)
 
         return widget
@@ -327,13 +359,13 @@ class _UI(object):
     @staticmethod
     def get_factory(name):
         return {
-            _UI.FRAME:      _UI.create_frame,
-            _UI.BUTTON:     _UI.create_button,
-            _UI.LABEL:      _UI.create_label,
-            _UI.MESSAGE:    _UI.create_message,
-            _UI.LISTBOX:    _UI.create_listbox,
-            _UI.ENTRY:      _UI.create_entry,
-            _UI.TOPLEVEL:   _UI.create_toplevel,
+            UI.FRAME:      UI.create_frame,
+            UI.BUTTON:     UI.create_button,
+            UI.LABEL:      UI.create_label,
+            UI.MESSAGE:    UI.create_message,
+            UI.LISTBOX:    UI.create_listbox,
+            UI.ENTRY:      UI.create_entry,
+            UI.TOPLEVEL:   UI.create_toplevel,
         }.get(name, None)
 
     @staticmethod
@@ -344,17 +376,26 @@ class _UI(object):
 
     @staticmethod
     def create_message(master, *args, **kwargs):
-        # text = ""
-        # if "text" in kwargs:
-        #     text = kwargs["text"]
-        #     del kwargs["text"]
-
         message = tk.Message(master, *args, **kwargs)
         return message
 
     @staticmethod
     def create_frame(master, *args, **kwargs):
-        frame = tk.Frame(master, borderwidth=3, padx=15, pady=15, *args, **kwargs)
+        borderwidth = 3
+        padx = 15
+        pady = 15
+
+        if "borderwidth" in kwargs:
+            borderwidth = kwargs["borderwidth"]
+            del kwargs["borderwidth"]
+        if "padx" in kwargs:
+            padx = kwargs["padx"]
+            del kwargs["padx"]
+        if "pady" in kwargs:
+            pady = kwargs["pady"]
+            del kwargs["pady"]
+
+        frame = tk.Frame(master, borderwidth=borderwidth, padx=padx, pady=pady, *args, **kwargs)
 
         return frame
 
@@ -362,7 +403,7 @@ class _UI(object):
     def create_button(master, *args, **kwargs):
         text = ""
         command = None
-        anchor = _UI.E
+        anchor = UI.E
 
         if "text" in kwargs:
             text = kwargs["text"]
@@ -375,14 +416,14 @@ class _UI(object):
             del kwargs["anchor"]
 
         button = tk.Button(master, text=text, command=command, anchor=anchor, *args, **kwargs)
-        button.pack(fill=_UI.BOTH)
+        button.pack(fill=UI.BOTH)
 
         return button
 
     @staticmethod
     def create_label(master, *args, **kwargs):
         text = ""
-        anchor = _UI.W
+        anchor = UI.W
 
         if "text" in kwargs:
             text = kwargs["text"]
@@ -392,13 +433,13 @@ class _UI(object):
             del kwargs["anchor"]
 
         label = tk.Label(master, text=text, anchor=anchor, *args, **kwargs)
-        label.pack(fill=_UI.BOTH)
+        label.pack(fill=UI.BOTH)
 
         return label
 
     @staticmethod
     def create_listbox(master, *args, **kwargs):
-        selectmode = _ListBox.SINGLE
+        selectmode = ListBox.SINGLE
         width = 25
         if "selectmode" in kwargs:
             selectmode = kwargs["selectmode"]
@@ -407,7 +448,7 @@ class _UI(object):
             width = kwargs["width"]
             del kwargs["width"]
 
-        listbox = _ListBox(master, *args, selectmode=selectmode, width=width, **kwargs)
+        listbox = ListBox(master, *args, selectmode=selectmode, width=width, **kwargs)
 
         return listbox
 
@@ -424,7 +465,7 @@ class _UI(object):
         return toplevel
 
 
-class _ListBox(tk.Listbox):
+class ListBox(tk.Listbox):
     SINGLE = tk.SINGLE
     MULTIPLE = tk.MULTIPLE
 
@@ -435,7 +476,7 @@ class _ListBox(tk.Listbox):
     def update_options(self, options):
         self._delete_all_options()
         self._insert_options(options)
-        self._select_default()
+        # self._select_default()
 
     def get_selections(self):
         """
@@ -450,7 +491,7 @@ class _ListBox(tk.Listbox):
         return selections
 
     def get_selection(self):
-        assert self._selectmode == _ListBox.SINGLE
+        assert self._selectmode == ListBox.SINGLE
 
         selection = self.get_selections()
         if not selection:
@@ -458,7 +499,7 @@ class _ListBox(tk.Listbox):
 
         return selection[0]
 
-    def _select_default(self):
+    def select_default(self):
         self.select_set(0)
 
     def _insert_options(self, options):
@@ -485,16 +526,20 @@ class App(tk.Tk):
         self.geometry("+{}+{}".format(x, y))
         self.title("Android Device Manager")
 
-        self._adb = _ADB()
-        self._main_frame = _MainFrame(self)
-        self._device_selection_manager = _DeviceSelectionManager(self._adb, self._main_frame.device_selection_frame)
-        self._device_manager = _DeviceManager(self._main_frame.device_management_frame)
+        # Models
+        self._adb = ADB()       # model for both device selction and package management
+        self._device_administrator = DeviceAdministrator()
+        # View
+        self._frame = MainFrame(self)
+        # Controllers
+        self._device_selection_manager = DeviceSelectionManager(self._adb, self._frame.device_selection_frame)
+        self._device_manager = DeviceAdministrationManager(self._device_administrator, self._frame.device_administration_frame)
 
     def run(self):
         self.mainloop()
 
 
-class _DeviceSelectionManager(object):
+class DeviceSelectionManager(object):
     def __init__(self, adb, device_selection_frame):
         self._adb = adb
         self._frame = device_selection_frame
@@ -502,12 +547,12 @@ class _DeviceSelectionManager(object):
         self._set_commands()
         self._refresh_device_list()
 
-        # Solve the lost selection problem.
+        # Solve the lost selection problem when focus gets lost
         self._frame.device_listbox.config(exportselection=False)
 
     def refresh_device_list(self):
         self._refresh_device_list()
-        _Message.show_info("Device List Refreshed!")
+        Message.show_info("Device List Refreshed!")
 
     def _set_commands(self):
         self._frame.refresh_button.config(command=self.refresh_device_list)
@@ -527,11 +572,12 @@ class _DeviceSelectionManager(object):
 
     def _create_package_management_frame(self, device):
         if not device:
+            Message.show_error("Please Select a Device!")
             return
 
         # TODO:
-        frame = _PackageManagementFrame()
-        packagemanager = _PackageManager(self._adb, frame, device)
+        frame = PackageManagementFrame()
+        packagemanager = PackageManager(self._adb, frame, device)
 
     def _refresh_device_list(self):
         """
@@ -542,150 +588,195 @@ class _DeviceSelectionManager(object):
 
         options = []
 
-        for device in device_dict:
-            status = device_dict[device]
+        for device, status in device_dict.iteritems():
             options.append("{}    {}".format(device, status))
 
-        _Debug.debug(("options: ", options))
+        Debug.debug(("options: ", options))
 
         self._frame.device_listbox.update_options(options)
+
+        self._frame.device_listbox.select_default()
 
     def _get_selected_device(self):
         selection = self._frame.device_listbox.get_selection()
 
         if not selection:
-            _Message.show_warning("Please Select a Device")
-            _Debug.debug(("no selection",))
+            Message.show_warning("Please Select a Device")
             return None
 
         device, _ = selection.split()
 
-        _Debug.debug(("device: ", device))
+        Debug.debug(("device: ", device))
 
         return device
 
 
-class _Frame(tk.Frame):
+class Frame(tk.Frame):
     def __init__(self, master, *args, **kwargs):
-        tk.Frame.__init__(self, master, borderwidth=3, padx=15, pady=15, *args, **kwargs)
+        borderwidth = 3
+        padx = 5
+        pady = 5
+
+        if "borderwidth" in kwargs:
+            borderwith = kwargs["borderwidth"]
+            del kwargs["borderwidth"]
+        if "padx" in kwargs:
+            padx = kwargs["padx"]
+            del kwargs["padx"]
+        if "pady" in kwargs:
+            pady = kwargs["pady"]
+
+        tk.Frame.__init__(self, master, borderwidth=borderwidth, padx=padx, pady=pady, *args, **kwargs)
         self.pack()
 
 
-class _FrameLeft(_Frame):
+class FrameLeft(Frame):
     def __init__(self, master, *args, **kwargs):
-        _Frame.__init__(self, master, *args, **kwargs)
+        Frame.__init__(self, master, *args, **kwargs)
         self.pack(side=tk.LEFT)
 
 
-class _DeviceManagementFrame(_FrameLeft):
+class DeviceAdministrationFrame(FrameLeft):
     def __init__(self, master, *args, **kwargs):
-        _FrameLeft.__init__(self, master, *args, **kwargs)
-        _UI.create(_UI.LABEL, self, text="Device Management")
-        _UI.create(_UI.LABEL, self)
-        self.create_template_button = _UI.create(_UI.BUTTON, self, text="Create Template")
-        self.run_template_button = _UI.create(_UI.BUTTON, self, text="Run template")
-        self.reboot_device_button = _UI.create(_UI.BUTTON, self, text="Reboot device")
+        FrameLeft.__init__(self, master, *args, **kwargs)
+
+        UI.create(UI.LABEL, self, text="Device Management")
+        UI.create(UI.LABEL, self)
+        self.create_template_button = UI.create(UI.BUTTON, self, text="Create Template")
+        self.run_template_button = UI.create(UI.BUTTON, self, text="Run template")
+        self.reboot_device_button = UI.create(UI.BUTTON, self, text="Reboot device")
 
 
-class _DeviceManager(object):
+class FileUtils(object):
+    @staticmethod
+    def create_file_close(name, data):
+        with open(name, "w") as r:
+            r.write(data)
+
+
+class DeviceAdministrator(object):
+    """
+    The device administration model.
+    """
     CONFIG_FILE = "VMMANAGER.CONF"
 
-    CREATE_TEMPLATE = "0xA1\n"
-    RUN_TEMPLATE = "0xA2\n"
+    CREATE_TEMPLATE = "0xA1"
+    RUN_TEMPLATE = "0xA2"
 
-    REBOOT_DEVICE = "0xAF\n"
+    REBOOT_DEVICE = "0xAF"
 
-    def __init__(self, device_management_frame):
-        self._frame = device_management_frame
+    @staticmethod
+    def create_template():
+        DeviceAdministrator._do(DeviceAdministrator.CREATE_TEMPLATE)
+
+    @staticmethod
+    def run_template():
+        DeviceAdministrator._do(DeviceAdministrator.RUN_TEMPLATE)
+
+    @staticmethod
+    def reboot_device():
+        DeviceAdministrator._do(DeviceAdministrator.REBOOT_DEVICE)
+
+    @staticmethod
+    def _do(command):
+        command += '\n'
+        FileUtils.create_file_close(DeviceAdministrator.CONFIG_FILE, command)
+
+
+class DeviceAdministrationManager(object):
+    def __init__(self, device_administrator, device_administration_frame):
+        self._model = device_administrator
+        self._view = device_administration_frame
 
         self._set_commands()
 
     def _set_commands(self):
-        self._frame.create_template_button.config(command=self.create_template)
-        self._frame.run_template_button.config(command=self.run_template)
-        self._frame.reboot_device_button.config(command=self.reboot_device)
-
-    @staticmethod
-    def _open_and_write(name, data):
-        r = open(name, "w")
-        r.write(data)
-        r.close()
+        self._view.create_template_button.config(command=self.create_template)
+        self._view.run_template_button.config(command=self.run_template)
+        self._view.reboot_device_button.config(command=self.reboot_device)
 
     def create_template(self):
-        self._open_and_write(_DeviceManager.CONFIG_FILE, _DeviceManager.CREATE_TEMPLATE)
+        self._model.create_template()
+        Message.show_info("Done!")
 
     def run_template(self):
-        self._open_and_write(_DeviceManager.CONFIG_FILE, _DeviceManager.RUN_TEMPLATE)
+        self._model.run_template()
+        Message.show_info("Done!")
 
     def reboot_device(self):
-        self._open_and_write(_DeviceManager.CONFIG_FILE, _DeviceManager.REBOOT_DEVICE)
+        self._model.reboot_device()
+        Message.show_info("Done!")
 
 
-class _DeviceSelectionFrame(_FrameLeft):
+class DeviceSelectionFrame(FrameLeft):
     def __init__(self, master, *args, **kwargs):
-        _FrameLeft.__init__(self, master, *args, **kwargs)
+        FrameLeft.__init__(self, master, *args, **kwargs)
 
-        master = _UI.create(_UI.FRAME, self)
-        _UI.create(_UI.LABEL, master, text="Package Management")
-        _UI.create(_UI.LABEL, master)
+        master = UI.create(UI.FRAME, self)
 
-        _UI.create(_UI.LABEL, master, text="List of Devices", anchor=None)
-        _UI.create(_UI.LABEL, master, text="Devices     Status    ")
-        self.device_listbox = _UI.create(_UI.LISTBOX, master)
+        UI.create(UI.LABEL, master, text="Package Management")
+        UI.create(UI.LABEL, master)
+        UI.create(UI.LABEL, master, text="List of Devices", anchor=None)
+        UI.create(UI.LABEL, master, text="Devices     Status    ")
+        UI.create(UI.LABEL, master)
+        self.device_listbox = UI.create(UI.LISTBOX, master)
 
-        master = _UI.create(_UI.FRAME, self)
-        self.select_button = _UI.create_left(_UI.BUTTON, master, text="Select")
-        self.refresh_button = _UI.create_left(_UI.BUTTON, master, text="Refresh")
+        master = UI.create(UI.FRAME, self)
+        self.select_button = UI.create_left(UI.BUTTON, master, text="Select")
+        self.refresh_button = UI.create_left(UI.BUTTON, master, text="Refresh")
 
 
-class _Toplevel(tk.Toplevel):
+class Toplevel(tk.Toplevel):
     def __init__(self, master, *args, **kwargs):
         tk.Toplevel.__init__(self, master, *args, **kwargs)
 
 
-class _PackageManagementFrame(_Toplevel):
+class PackageManagementFrame(Toplevel):
     def __init__(self, *args, **kwargs):
-        _Toplevel.__init__(self, None, *args, **kwargs)
+        Toplevel.__init__(self, None, *args, **kwargs)
+
         self.title("Package Manager")
 
-        master = _UI.create(_UI.FRAME, self)
-        self.installed_package_listbox = _UI.create(_UI.LISTBOX, master, selectmode=_ListBox.MULTIPLE, width=50)
+        master = UI.create(UI.FRAME, self)
 
-        master = _UI.create(_UI.FRAME, self)
-        self.search_box = _UI.create_left(_UI.ENTRY, master)
-        self.search_button = _UI.create_left(_UI.BUTTON, master, text="Search")
+        self.installed_package_listbox = UI.create(UI.LISTBOX, master, selectmode=ListBox.MULTIPLE, width=50)
 
-        master = _UI.create(_UI.FRAME, self)
-        self.refresh_button = _UI.create_left(_UI.BUTTON, master, text="Refresh Installed Package List")
-        self.install_button = _UI.create_left(_UI.BUTTON, master, text="Install")
-        self.uninstall_button = _UI.create_left(_UI.BUTTON, master, text="Uninstall")
+        master = UI.create(UI.FRAME, self)
+
+        self.search_box = UI.create_left(UI.ENTRY, master)
+        self.search_button = UI.create_left(UI.BUTTON, master, text="Search")
+
+        master = UI.create(UI.FRAME, self)
+        self.refresh_button = UI.create_left(UI.BUTTON, master, text="Refresh Installed Package List")
+        self.install_button = UI.create_left(UI.BUTTON, master, text="Install")
+        self.uninstall_button = UI.create_left(UI.BUTTON, master, text="Uninstall")
 
 
-class _PackageManager(object):
+class PackageManager(object):
     def __init__(self, adb, package_management_frame, device):
-        self._adb = adb
-        self._frame = package_management_frame
         self._device = device
 
+        self._model = adb
+        self._view = package_management_frame
         self._set_commands()
 
         self._refresh_installed_package_list()
 
-        self._frame.search_box.focus_set()
-        self._frame.search_button.bind("<Return>", self.search)
+        self._view.search_box.focus_set()
+        self._view.search_button.bind("<Return>", self.search)      # TODO: figure out why this doesn't work
 
     def _set_commands(self):
-        self._frame.refresh_button.config(command=self.refresh_installed_package_list)
-        self._frame.install_button.config(command=self.install_packages)
-        self._frame.uninstall_button.config(command=self.uninstall_packages)
-        self._frame.search_button.config(command=self.search)
+        self._view.refresh_button.config(command=self.refresh_installed_package_list)
+        self._view.install_button.config(command=self.install_packages)
+        self._view.uninstall_button.config(command=self.uninstall_packages)
+        self._view.search_button.config(command=self.search)
 
     def search(self):
-        search_phrase = self._frame.search_box.get()
+        search_phrase = self._view.search_box.get()
         if not search_phrase:
             return
 
-        self._refresh_installed_package_list(True, search_phrase)
+        self._refresh_installed_package_list(search=search_phrase)
 
     def uninstall_packages(self):
         device = self._device
@@ -693,9 +784,9 @@ class _PackageManager(object):
         if not device:
             return
 
-        package_list = self._frame.installed_package_listbox.get_selections()
+        package_list = self._view.installed_package_listbox.get_selections()
 
-        self._adb.uninstall_packages(device, package_list)
+        self._model.uninstall_packages(device, package_list)
 
     def install_packages(self):
         initialdir = "netdisk/app-files"
@@ -704,49 +795,46 @@ class _PackageManager(object):
         if not device:
             return
 
-        package_path_filename_list = _FileDialog.ask_open_filenames(initialdir=initialdir)
-        self._adb.install_packages(device, package_path_filename_list)
+        package_path_filename_list = FileDialog.ask_open_filenames(initialdir=initialdir)
+        self._model.install_packages(device, package_path_filename_list)
 
     def refresh_installed_package_list(self):
         if not self._device:
             return
+
         self._refresh_installed_package_list()
-        _Message.show_info("Installed Package List Refreshed!")
+        Message.show_info("Installed Package List Refreshed!")
 
     def _refresh_installed_package_list(self, third_party=True, search=""):
         if not self._device:
             return
 
-        installed_package_list = self._adb.get_installed_packages(self._device, third_party, search)
-        _Debug.debug(("installed_package_list[0: 3]: ", installed_package_list[0: 3]))
+        installed_package_list = self._model.get_installed_package_list(self._device, third_party, search)
+        Debug.debug(("installed_package_list[0: 3]: ", installed_package_list[0: 3]))
 
-        self._frame.installed_package_listbox.update_options(installed_package_list)
+        self._view.installed_package_listbox.update_options(installed_package_list)
 
 
-class _MainFrame(object):
+class MainFrame(Frame):
     def __init__(self, master):
+        Frame.__init__(self, master)
 
-        self._frame = _UI.create(_UI.FRAME, master)
-
-        self.device_management_frame = _DeviceManagementFrame(self._frame)
-        self.device_selection_frame = _DeviceSelectionFrame(self._frame)
+        self.device_administration_frame = DeviceAdministrationFrame(self)
+        self.device_selection_frame = DeviceSelectionFrame(self)
 
         self.debug_button = None
 
-        self._init_frames()
-
-    def _init_frames(self):
         self._init_debug_frame()
 
     def _init_debug_frame(self):
-        if not _Debug.DEBUG:
+        if not Debug.DEBUG:
             return
 
         def __debug():
             pass
 
-        debug_frame = _UI.create_left(_UI.FRAME, self._frame)
-        self.debug_button = _UI.create(_UI.BUTTON, debug_frame, text="Debug", command=__debug)
+        debug_frame = UI.create_left(UI.FRAME, self._frame)
+        self.debug_button = UI.create(UI.BUTTON, debug_frame, text="Debug", command=__debug)
 
 
 def main():
