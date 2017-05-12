@@ -287,9 +287,12 @@ class ADB(object):
 class UI(object):
     LEFT = tk.LEFT
     BOTH = tk.BOTH
+    RIGHT = tk.RIGHT
 
     W = tk.W
     E = tk.E
+
+    Y = tk.Y
 
     FRAME = "frame"
     BUTTON = "button"
@@ -298,6 +301,7 @@ class UI(object):
     LISTBOX = "listbox"
     ENTRY = "entry"
     TOPLEVEL = "toplevel"
+    SCROLLBAR = "scrollbar"
 
     @staticmethod
     def create_below(name, master, *args, **kwargs):
@@ -306,6 +310,11 @@ class UI(object):
     @staticmethod
     def create_left(name, master, *args, **kwargs):
         side = UI.LEFT
+        return UI.create(name, master, side=side, *args, **kwargs)
+
+    @staticmethod
+    def create_right(name, master, *args, **kwargs):
+        side = UI.RIGHT
         return UI.create(name, master, side=side, *args, **kwargs)
 
     @staticmethod
@@ -320,6 +329,9 @@ class UI(object):
         if name not in [UI.TOPLEVEL]:    # toplevel widget doesn't have pack()
             widget.pack(side=side)
 
+        if name is UI.SCROLLBAR:
+            widget.pack(fill=UI.Y)
+
         return widget
 
     @staticmethod
@@ -332,7 +344,14 @@ class UI(object):
             UI.LISTBOX:    UI.create_listbox,
             UI.ENTRY:      UI.create_entry,
             UI.TOPLEVEL:   UI.create_toplevel,
+            UI.SCROLLBAR:  UI.create_scrollbar,
         }.get(name, None)
+
+    @staticmethod
+    def create_scrollbar(master, *args, **kwargs):
+        scrollbar = ttk.Scrollbar(master)
+
+        return scrollbar
 
     @staticmethod
     def create_entry(master, *args, **kwargs):
@@ -717,7 +736,8 @@ class PackageManagementFrame(Frame):
 
         master = UI.create(UI.FRAME, self)
 
-        self.installed_package_listbox = UI.create(UI.LISTBOX, master, selectmode=ListBox.MULTIPLE, width=50)
+        self.installed_package_listbox = UI.create_left(UI.LISTBOX, master, selectmode=ListBox.MULTIPLE, width=50)
+        self.scrollbar = UI.create_right(UI.SCROLLBAR, master)
 
         master = UI.create(UI.FRAME, self)
 
@@ -747,6 +767,8 @@ class PackageManager(object):
         self._view.search_box.focus_set()
         self._view.search_box.bind("<Return>", self.search)
         # self.bind("<Return>", self.search)      # TODO: figure out why this doesn't work
+
+        self._init_installed_package_list_scrollbar()
 
     def _set_commands(self):
         self._view.refresh_button.config(command=self.refresh_installed_package_list)
@@ -833,6 +855,13 @@ class PackageManager(object):
         failure_list_string = " ".join(failure_list)
 
         return success_list_string, failure_list_string
+
+    def _init_installed_package_list_scrollbar(self):
+        listbox = self._view.installed_package_listbox
+        scrollbar = self._view.scrollbar
+
+        listbox.config(yscrollcommand=scrollbar.set)
+        scrollbar.config(command=listbox.yview)
 
     def _refresh_installed_package_list(self, third_party=True, search=""):
         installed_package_list = self._model.get_installed_package_list(self._device, third_party, search)
