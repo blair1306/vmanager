@@ -122,15 +122,15 @@ class ADBException(Exception):
     pass
 
 
-class DeviceNotExist(ADBException):
+class DeviceNotFoundError(ADBException):
     pass
 
 
-class DeviceOffline(ADBException):
+class DeviceOfflineError(ADBException):
     pass
 
 
-class ServerStartFail(ADBException):
+class ServerError(ADBException):
     pass
 
 
@@ -237,18 +237,17 @@ class ADB(object):
     def _check_status_raise_exception(device):
         """
         Check if device exists and whether is operable.
-        :return: True if device doesn't exit or is inoperable.
         """
         if device is None:
             raise ValueError("device shouldn't be None")
 
         device_dict = ADB.get_device_dict()
         if device not in device_dict:
-            raise DeviceNotExist("%s doesn't exist" % device)
+            raise DeviceNotFoundError("%s not found." % device)
 
         status = device_dict[device]
         if status == ADBDeviceStatus.OFFLINE:
-            raise DeviceOffline("%s is offline" % device)
+            raise DeviceOfflineError("%s is offline." % device)
 
     @staticmethod
     def _start_server():
@@ -257,14 +256,14 @@ class ADB(object):
     @staticmethod
     def _start_server_raise_exception():
         if Shell.FAILED == ADB._start_server():
-            raise ServerStartFail
+            raise ServerError("Couldn't Start ADB Server.")
 
     @staticmethod
     def _install_package(device, full_path_name):
         """
         
         :param full_path_name: the full pathname of package to install: 
-        :return: status of installation
+        :return: Installation status
         """
         replace_existing = "-r"
         command = "adb -s %s install %s %s" % (device, replace_existing, full_path_name)
@@ -275,7 +274,7 @@ class ADB(object):
         """
         
         :param package_name: the package to uninstall.
-        :return: 
+        :return: Uninstallation status
         TODO: The return code for adb uninstall doesn't work the way this intends it to, adb uninstall returns 0 even 
               if the uninstallation fails.
         """
@@ -349,7 +348,7 @@ class UI(object):
 
     @staticmethod
     def create_scrollbar(master, *args, **kwargs):
-        scrollbar = ttk.Scrollbar(master)
+        scrollbar = ttk.Scrollbar(master, *args, **kwargs)
 
         return scrollbar
 
@@ -361,7 +360,7 @@ class UI(object):
 
     @staticmethod
     def create_message(master, *args, **kwargs):
-        message = ttk.Message(master, *args, **kwargs)
+        message = tk.Message(master, *args, **kwargs)
         return message
 
     @staticmethod
@@ -389,7 +388,6 @@ class UI(object):
             del kwargs["command"]
 
         button = ttk.Button(master, text=text, command=command, *args, **kwargs)
-        button.pack(fill=UI.BOTH)
 
         return button
 
@@ -406,7 +404,6 @@ class UI(object):
             del kwargs["anchor"]
 
         label = ttk.Label(master, text=text, anchor=anchor, *args, **kwargs)
-        label.pack(fill=UI.BOTH)
 
         return label
 
@@ -449,7 +446,6 @@ class ListBox(tk.Listbox):
     def update_options(self, options):
         self._delete_all_options()
         self._insert_options(options)
-        # self._select_default()
 
     def get_selections(self):
         """
@@ -486,26 +482,18 @@ class ListBox(tk.Listbox):
         self.delete(0, tk.END)
 
 
-class DisableEnableWidget(object):
-    """
-    Records the callback to disable and enable a widget
-    """
-    def __init__(self):
-        self._disable = None
-
-
 class App(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
 
-
         self.resizable(False, False)
-        self.tk_setPalette("#ececec")
+        # self.tk_setPalette("#ececec")
 
         x = (self.winfo_screenwidth() - self.winfo_reqwidth()) / 3
         y = (self.winfo_screenheight() - self.winfo_reqheight()) / 3
 
         default_font = tkFont.nametofont("TkDefaultFont")
+        # default_font = tkFont.nametofont("Courier")
         default_font.configure(size=13)
 
         # reposition the window
