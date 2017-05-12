@@ -684,6 +684,9 @@ class DeviceSelectionManager(object):
     def _get_selected_device(self):
         selection = self._view.device_listbox.get_selection()
 
+        if not selection:
+            return None
+
         device, _ = selection.split()
 
         Debug.debug(("device: ", device))
