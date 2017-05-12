@@ -13,6 +13,7 @@ import os
 import Tkinter as tk
 import tkMessageBox
 import tkFileDialog
+import tkFont
 import subprocess
 import inspect
 
@@ -388,8 +389,8 @@ class UI(object):
     @staticmethod
     def create_frame(master, *args, **kwargs):
         borderwidth = 3
-        padx = 15
-        pady = 15
+        padx = 0
+        pady = 0
 
         if "borderwidth" in kwargs:
             borderwidth = kwargs["borderwidth"]
@@ -410,6 +411,8 @@ class UI(object):
         text = ""
         command = None
         anchor = UI.E
+        padx = 15
+        pady = 6
 
         if "text" in kwargs:
             text = kwargs["text"]
@@ -420,8 +423,14 @@ class UI(object):
         if "anchor" in kwargs:
             anchor = kwargs["anchor"]
             del kwargs["anchor"]
+        if "padx" in kwargs:
+            padx = kwargs["padx"]
+            del kwargs["padx"]
+        if "pady" in kwargs:
+            pady = kwargs["pady"]
+            del kwargs["pady"]
 
-        button = tk.Button(master, text=text, command=command, anchor=anchor, *args, **kwargs)
+        button = tk.Button(master, text=text, command=command, anchor=anchor, padx=padx, pady=pady, *args, **kwargs)
         button.pack(fill=UI.BOTH)
 
         return button
@@ -519,6 +528,14 @@ class ListBox(tk.Listbox):
         self.delete(0, tk.END)
 
 
+class DisableEnableWidget(object):
+    """
+    Records the callback to disable and enable a widget
+    """
+    def __init__(self):
+        self._disable = None
+
+
 class App(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
@@ -529,92 +546,24 @@ class App(tk.Tk):
         x = (self.winfo_screenwidth() - self.winfo_reqwidth()) / 3
         y = (self.winfo_screenheight() - self.winfo_reqheight()) / 3
 
+        default_font = tkFont.nametofont("TkDefaultFont")
+        default_font.configure(size=13)
+
         self.geometry("+{}+{}".format(x, y))
         self.title("Android Device Manager")
 
         # Models
-        self._adb = ADB()       # model for both device selction and package management
+        self._adb = ADB()       # model for both device selection and package management
         self._device_administrator = DeviceAdministrator()
-        # View
+        # Views
         self._frame = MainFrame(self)
         # Controllers
         self._device_selection_manager = DeviceSelectionManager(self._adb, self._frame.device_selection_frame)
-        self._device_manager = DeviceAdministrationManager(self._device_administrator, self._frame.device_administration_frame)
+        self._device_manager = \
+            DeviceAdministrationManager(self._device_administrator, self._frame.device_administration_frame)
 
     def run(self):
         self.mainloop()
-
-
-class DeviceSelectionManager(object):
-    def __init__(self, adb, device_selection_frame):
-        self._adb = adb
-        self._frame = device_selection_frame
-
-        self._set_commands()
-        self._refresh_device_list()
-
-        # Solve the lost selection problem when focus gets lost
-        self._frame.device_listbox.config(exportselection=False)
-
-    def refresh_device_list(self):
-        self._refresh_device_list()
-        Message.show_info("Device List Refreshed!")
-
-    def _set_commands(self):
-        self._frame.refresh_button.config(command=self.refresh_device_list)
-        self._frame.select_button.config(command=self.create_package_management_frame)
-
-    def create_package_management_frame(self):
-        """
-        Create package management frame if there is a device currently under selection.
-        
-        :return: 
-        """
-        device = self._get_selected_device()
-        if not device:
-            return
-
-        self._create_package_management_frame(device)
-
-    def _create_package_management_frame(self, device):
-        if not device:
-            Message.show_error("Please Select a Device!")
-            return
-
-        # TODO:
-        frame = PackageManagementFrame()
-        packagemanager = PackageManager(self._adb, frame, device)
-
-    def _refresh_device_list(self):
-        """
-        We don't want the device refreshed message when this app starts up.
-        :return: 
-        """
-        device_dict = self._adb.get_device_dict()
-
-        options = []
-
-        for device, status in device_dict.iteritems():
-            options.append("{}    {}".format(device, status))
-
-        Debug.debug(("options: ", options))
-
-        self._frame.device_listbox.update_options(options)
-
-        self._frame.device_listbox.select_default()
-
-    def _get_selected_device(self):
-        selection = self._frame.device_listbox.get_selection()
-
-        if not selection:
-            Message.show_warning("Please Select a Device")
-            return None
-
-        device, _ = selection.split()
-
-        Debug.debug(("device: ", device))
-
-        return device
 
 
 class Frame(tk.Frame):
@@ -714,6 +663,78 @@ class DeviceAdministrationManager(object):
         Message.show_info("Done!")
 
 
+class DeviceSelectionManager(object):
+    def __init__(self, adb, device_selection_frame):
+        self._adb = adb
+        self._view = device_selection_frame
+
+        self._set_commands()
+        self._refresh_device_list()
+
+        # Solve the lost selection problem when focus gets lost
+        self._view.device_listbox.config(exportselection=False)
+
+    def refresh_device_list(self):
+        self._refresh_device_list()
+        Message.show_info("Device List Refreshed!")
+
+    def _set_commands(self):
+        self._view.refresh_button.config(command=self.refresh_device_list)
+        self._view.select_button.config(command=self.create_package_management_frame)
+
+    def create_package_management_frame(self):
+        """
+        Create package management frame if there is a device currently under selection.
+        
+        :return: 
+        """
+        device = self._get_selected_device()
+        if not device:
+            return
+
+        self._create_package_management_frame(device)
+
+    def _create_package_management_frame(self, device):
+        if not device:
+            Message.show_error("Please Select a Device!")
+            return
+
+        frame = PackageManagementFrame(self._view)
+
+        PackageManager(self._adb, frame, device)
+
+    def _refresh_device_list(self):
+        """
+        We don't want the device refreshed message when this app starts up.
+        :return: 
+        """
+        device_dict = self._adb.get_device_dict()
+
+        options = []
+
+        for device, status in device_dict.iteritems():
+            options.append("{}    {}".format(device, status))
+
+        Debug.debug(("options: ", options))
+
+        self._view.device_listbox.update_options(options)
+
+        self._view.device_listbox.select_default()
+
+    def _get_selected_device(self):
+        selection = self._view.device_listbox.get_selection()
+
+        if not selection:
+            Message.show_warning("Please Select a Device")
+            return None
+
+        device, _ = selection.split()
+
+        Debug.debug(("device: ", device))
+
+        return device
+
+
 class DeviceSelectionFrame(FrameLeft):
     def __init__(self, master, *args, **kwargs):
         FrameLeft.__init__(self, master, *args, **kwargs)
@@ -738,8 +759,10 @@ class Toplevel(tk.Toplevel):
 
 
 class PackageManagementFrame(Toplevel):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, parent=None, *args, **kwargs):
         Toplevel.__init__(self, None, *args, **kwargs)
+
+        self._parent = parent
 
         self.title("Package Manager")
 
