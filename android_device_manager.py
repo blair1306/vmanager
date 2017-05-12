@@ -11,21 +11,12 @@ if sys.version_info >= (3, 0):
 
 import os
 import Tkinter as tk
+import ttk
 import tkMessageBox
 import tkFileDialog
 import tkFont
 import subprocess
 import inspect
-
-
-def exit_if_fail(status, message):
-    success = 0
-
-    if status == success:
-        return
-
-    Message.show_error(message)
-    sys.exit(1)
 
 
 class Debug(object):
@@ -92,28 +83,55 @@ class FileDialog(object):
     def ask_open_filenames(*args, **kwargs):
         return tkFileDialog.askopenfilenames(*args, **kwargs)
 
+    @staticmethod
+    def ask_open_apkfilenames(*args, **kwargs):
+        return tkFileDialog.askopenfilenames(
+            *args,
+            filetypes=[
+                ('Apk files', '.apk'),
+                ('All Files', '.*'),
+            ],
+            **kwargs
+        )
+
 
 class Message(object):
     @staticmethod
-    def show_warning(message):
-        tkMessageBox.showwarning(message=message)
+    def show_warning(message, *args, **kwargs):
+        tkMessageBox.showwarning(message=message, *args, **kwargs)
 
     @staticmethod
-    def show_error(message):
-        tkMessageBox.showerror(message=message)
+    def show_error(message, *args, **kwargs):
+        tkMessageBox.showerror(message=message, *args, **kwargs)
 
     @staticmethod
     def show_info(message, *args, **kwargs):
         tkMessageBox.showinfo(message=message, *args, **kwargs)
 
     @staticmethod
-    def ask_ok_cancel(message):
-        return tkMessageBox.askokcancel(message=message)
+    def ask_ok_cancel(message, *args, **kwargs):
+        return tkMessageBox.askokcancel(message=message, *args, **kwargs)
 
 
 class ADBDeviceStatus(object):
     DEVICE = "device"
     OFFLINE = "offline"
+
+
+class ADBException(Exception):
+    pass
+
+
+class DeviceNotExist(ADBException):
+    pass
+
+
+class DeviceOffline(ADBException):
+    pass
+
+
+class ServerStartFail(ADBException):
+    pass
 
 
 class ADB(object):
@@ -130,7 +148,7 @@ class ADB(object):
         """
         device_dict = {}
 
-        ADB._start_server_exit_if_fail()
+        ADB._start_server_raise_exception()
 
         """
         The output of "adb devices" would be: 
@@ -160,8 +178,7 @@ class ADB(object):
         :param search: filter result with " | grep search"
         :return: List of installed packages.
         """
-        if ADB._check_status(device):
-            return
+        ADB._check_status_raise_exception(device)
 
         t = "-3" if third_party else ""
         search = " | grep %s" % search if search else ""
@@ -183,122 +200,64 @@ class ADB(object):
     def install_packages(device, package_path_filename_list):
         """
         
-        :return: 
+        :return: Installation Status List
         """
-        if ADB._check_status(device):
-            return
+        ADB._check_status_raise_exception(device)
 
         if not package_path_filename_list:
-            Message.show_warning("Cancelled!")
-            return
+            raise ValueError("Package_path_filename_list shouldn't be empty")
 
-        name_list = map(ADB._extract_filename, package_path_filename_list)
-        package_name_list_string = "    ".join(name_list)
-
-        if not Message.ask_ok_cancel("Install These Apps? %s" % package_name_list_string):
-            Message.show_info("Installation Cancelled.")
-            return
-
-        status_dict = {}
+        status_list = []
         for path_name in package_path_filename_list:
-            status_dict[path_name] = ADB._install_package(device, path_name)
+            status = ADB._install_package(device, path_name)
+            status_list.append(status)
 
-        success_list = []
-        failure_list = []
-
-        for path_name, status in status_dict.iteritems():
-            name = ADB._extract_filename(path_name)
-            if status == Shell.SUCCESS:
-                success_list.append(name)
-            if status == Shell.FAILED:
-                failure_list.append(name)
-
-        success_list_string = " ".join(success_list)
-        if success_list_string:
-            Message.show_info("%s Installed!" % success_list_string)
-
-        failure_list_string = " ".join(failure_list)
-        if failure_list_string:
-            Message.show_error("Installation Failed for These Apps: %s" % failure_list_string)
+        return status_list
 
     @staticmethod
     def uninstall_packages(device, package_list):
         """
         
-        :return: 
+        :return: list of uninstallation status
         """
-        if ADB._check_status(device):
-            return
+        ADB._check_status_raise_exception(device)
 
-        if len(package_list) == 0:
-            Message.show_warning("Please Select at Least One Package to Uninstall!")
-            return
+        if not package_list:
+            raise ValueError("package_list shouldn't be empty, %s" % package_list)
 
-        package_list_string = "    ".join(package_list)
-        if not Message.ask_ok_cancel("Uninstall These Packages: %s?" % package_list_string):
-            Message.show_info("Uninstallation Cancelled.")
-            return
-
-        status_dict = {}
+        status_list = []
         for package in package_list:
-            status_dict[package] = ADB._uninstall_package(device, package)
+            # status_dict[package] = ADB._uninstall_package(device, package)
+            status = ADB._uninstall_package(device, package)
+            status_list.append(status)
 
-        success_list = []
-        failure_list = []
-
-        for package, status in status_dict.iteritems():
-            if status == Shell.SUCCESS:
-                success_list.append(package)
-            if status == Shell.FAILED:
-                failure_list.append(package)
-
-        success_list_string = " ".join(success_list)
-        if success_list_string:
-            Message.show_info("%s Uninstalled!" % success_list_string)
-
-        failure_list_string = " ".join(failure_list)
-        if failure_list_string:
-            Message.show_error("Uninstallation Failed for These Packages: %s" % failure_list_string)
+        return status_list
 
     @staticmethod
-    def _check_status(device):
+    def _check_status_raise_exception(device):
         """
         Check if device exists and whether is operable.
         :return: True if device doesn't exit or is inoperable.
         """
         if device is None:
-            Message.show_error("No Device Selected.")
-            return True
+            raise ValueError("device shouldn't be None")
 
         device_dict = ADB.get_device_dict()
         if device not in device_dict:
-            Message.show_error("Device %s Doesn't Exist." % device)
-            return True
+            raise DeviceNotExist("%s doesn't exist" % device)
 
         status = device_dict[device]
         if status == ADBDeviceStatus.OFFLINE:
-            Message.show_error("%s is Offline!" % device)
-            return True
-
-        return False
+            raise DeviceOffline("%s is offline" % device)
 
     @staticmethod
     def _start_server():
         return Shell.execute_status("adb start-server")
 
     @staticmethod
-    def _start_server_exit_if_fail():
-        exit_if_fail(ADB._start_server(), "Couldn't start adb server.")
-
-    @staticmethod
-    def _extract_filename(full_path_name):
-        """
-        Extract out the path of pathname
-        :param full_path_name: 
-        :return: google.apk with input /home/Download/google.apk
-        """
-        name = os.path.basename(full_path_name)
-        return name
+    def _start_server_raise_exception():
+        if Shell.FAILED == ADB._start_server():
+            raise ServerStartFail
 
     @staticmethod
     def _install_package(device, full_path_name):
@@ -377,32 +336,24 @@ class UI(object):
 
     @staticmethod
     def create_entry(master, *args, **kwargs):
-        entry = tk.Entry(master, *args, **kwargs)
+        entry = ttk.Entry(master, *args, **kwargs)
 
         return entry
 
     @staticmethod
     def create_message(master, *args, **kwargs):
-        message = tk.Message(master, *args, **kwargs)
+        message = ttk.Message(master, *args, **kwargs)
         return message
 
     @staticmethod
     def create_frame(master, *args, **kwargs):
         borderwidth = 3
-        padx = 0
-        pady = 0
 
         if "borderwidth" in kwargs:
             borderwidth = kwargs["borderwidth"]
             del kwargs["borderwidth"]
-        if "padx" in kwargs:
-            padx = kwargs["padx"]
-            del kwargs["padx"]
-        if "pady" in kwargs:
-            pady = kwargs["pady"]
-            del kwargs["pady"]
 
-        frame = tk.Frame(master, borderwidth=borderwidth, padx=padx, pady=pady, *args, **kwargs)
+        frame = ttk.Frame(master, borderwidth=borderwidth, *args, **kwargs)
 
         return frame
 
@@ -410,9 +361,6 @@ class UI(object):
     def create_button(master, *args, **kwargs):
         text = ""
         command = None
-        anchor = UI.E
-        padx = 15
-        pady = 6
 
         if "text" in kwargs:
             text = kwargs["text"]
@@ -420,17 +368,8 @@ class UI(object):
         if "command" in kwargs:
             command = kwargs["command"]
             del kwargs["command"]
-        if "anchor" in kwargs:
-            anchor = kwargs["anchor"]
-            del kwargs["anchor"]
-        if "padx" in kwargs:
-            padx = kwargs["padx"]
-            del kwargs["padx"]
-        if "pady" in kwargs:
-            pady = kwargs["pady"]
-            del kwargs["pady"]
 
-        button = tk.Button(master, text=text, command=command, anchor=anchor, padx=padx, pady=pady, *args, **kwargs)
+        button = ttk.Button(master, text=text, command=command, *args, **kwargs)
         button.pack(fill=UI.BOTH)
 
         return button
@@ -447,7 +386,7 @@ class UI(object):
             anchor = kwargs["anchor"]
             del kwargs["anchor"]
 
-        label = tk.Label(master, text=text, anchor=anchor, *args, **kwargs)
+        label = ttk.Label(master, text=text, anchor=anchor, *args, **kwargs)
         label.pack(fill=UI.BOTH)
 
         return label
@@ -540,6 +479,7 @@ class App(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
 
+
         self.resizable(False, False)
         self.tk_setPalette("#ececec")
 
@@ -549,8 +489,14 @@ class App(tk.Tk):
         default_font = tkFont.nametofont("TkDefaultFont")
         default_font.configure(size=13)
 
+        # reposition the window
         self.geometry("+{}+{}".format(x, y))
         self.title("Android Device Manager")
+
+        # Use ttk style
+        self.style = ttk.Style()
+        classic = 'classic'
+        self.style.theme_use(classic)
 
         # Models
         self._adb = ADB()       # model for both device selection and package management
@@ -566,22 +512,16 @@ class App(tk.Tk):
         self.mainloop()
 
 
-class Frame(tk.Frame):
+class Frame(ttk.Frame):
     def __init__(self, master, *args, **kwargs):
         borderwidth = 3
-        padx = 5
-        pady = 5
 
         if "borderwidth" in kwargs:
             borderwith = kwargs["borderwidth"]
             del kwargs["borderwidth"]
-        if "padx" in kwargs:
-            padx = kwargs["padx"]
-            del kwargs["padx"]
-        if "pady" in kwargs:
-            pady = kwargs["pady"]
 
-        tk.Frame.__init__(self, master, borderwidth=borderwidth, padx=padx, pady=pady, *args, **kwargs)
+        # ttk.Frame.__init__(self, master, borderwidth=borderwidth, padx=padx, pady=pady, *args, **kwargs)
+        ttk.Frame.__init__(self, master, borderwidth=borderwidth, *args, **kwargs)
         self.pack()
 
 
@@ -607,6 +547,16 @@ class FileUtils(object):
     def create_file_close(name, data):
         with open(name, "w") as r:
             r.write(data)
+
+    @staticmethod
+    def extract_filename(full_path_name):
+        """
+        Extract out the path of pathname
+        :param full_path_name: 
+        :return: google.apk with input /home/Download/google.apk
+        """
+        name = os.path.basename(full_path_name)
+        return name
 
 
 class DeviceAdministrator(object):
@@ -690,6 +640,7 @@ class DeviceSelectionManager(object):
         """
         device = self._get_selected_device()
         if not device:
+            Message.show_warning("Please Select a Device.")
             return
 
         self._create_package_management_frame(device)
@@ -699,7 +650,9 @@ class DeviceSelectionManager(object):
             Message.show_error("Please Select a Device!")
             return
 
-        frame = PackageManagementFrame(self._view)
+        toplevel = Toplevel()
+
+        frame = PackageManagementFrame(toplevel)
 
         PackageManager(self._adb, frame, device)
 
@@ -724,10 +677,6 @@ class DeviceSelectionManager(object):
     def _get_selected_device(self):
         selection = self._view.device_listbox.get_selection()
 
-        if not selection:
-            Message.show_warning("Please Select a Device")
-            return None
-
         device, _ = selection.split()
 
         Debug.debug(("device: ", device))
@@ -744,8 +693,6 @@ class DeviceSelectionFrame(FrameLeft):
         UI.create(UI.LABEL, master, text="Package Management")
         UI.create(UI.LABEL, master)
         UI.create(UI.LABEL, master, text="List of Devices", anchor=None)
-        UI.create(UI.LABEL, master, text="Devices     Status    ")
-        UI.create(UI.LABEL, master)
         self.device_listbox = UI.create(UI.LISTBOX, master)
 
         master = UI.create(UI.FRAME, self)
@@ -754,17 +701,19 @@ class DeviceSelectionFrame(FrameLeft):
 
 
 class Toplevel(tk.Toplevel):
-    def __init__(self, master, *args, **kwargs):
+    def __init__(self, master=None, *args, **kwargs):
         tk.Toplevel.__init__(self, master, *args, **kwargs)
 
 
-class PackageManagementFrame(Toplevel):
-    def __init__(self, parent=None, *args, **kwargs):
-        Toplevel.__init__(self, None, *args, **kwargs)
+class PackageManagementFrame(Frame):
+    def __init__(self, master, *args, **kwargs):
+        Frame.__init__(self, master, *args, **kwargs)
 
-        self._parent = parent
+        self.master.resizable(False, False)
 
-        self.title("Package Manager")
+        self.device_info = tk.StringVar()
+        self.device_info.set("No Device is Selected")
+        UI.create(UI.LABEL, self, textvariable=self.device_info, anchor='center')
 
         master = UI.create(UI.FRAME, self)
 
@@ -783,11 +732,15 @@ class PackageManagementFrame(Toplevel):
 
 class PackageManager(object):
     def __init__(self, adb, package_management_frame, device):
+        assert device
+
         self._device = device
 
         self._model = adb
         self._view = package_management_frame
         self._set_commands()
+
+        self._set_device_info()
 
         self._refresh_installed_package_list()
 
@@ -813,38 +766,83 @@ class PackageManager(object):
     def uninstall_packages(self):
         device = self._device
 
-        if not device:
-            return
-
         package_list = self._view.installed_package_listbox.get_selections()
 
-        self._model.uninstall_packages(device, package_list)
+        if not package_list:
+            Message.show_warning("Please Select at Least One Package to Uninstall.", parent=self._view)
+            return
+
+        package_list_string = " ".join(package_list)
+
+        if not Message.ask_ok_cancel("Uninstall These Packages: %s?" % package_list_string, parent=self._view):
+            Message.show_info("Uninstallation Cancelled.", parent=self._view)
+            return
+
+        status_list = self._model.uninstall_packages(device, package_list)
+        success_list_string, failure_list_string = self._do(package_list, status_list)
+
+        if success_list_string:
+            Message.show_info("%s Uninstalled!" % success_list_string, parent=self._view)
+        if failure_list_string:
+            Message.show_error("Uninstallation Failed for %s" % failure_list_string, parent=self._view)
 
     def install_packages(self):
         initialdir = "netdisk/app-files"
         device = self._device
 
-        if not device:
+        package_path_filename_list = FileDialog.ask_open_apkfilenames(initialdir=initialdir, parent=self._view)
+
+        if not package_path_filename_list:
+            Message.show_info("Cancelled.", parent=self._view)
             return
 
-        package_path_filename_list = FileDialog.ask_open_filenames(initialdir=initialdir)
-        self._model.install_packages(device, package_path_filename_list)
+        name_list = map(FileUtils.extract_filename, package_path_filename_list)
+        name_list_string = "    ".join(name_list)
+
+        if not Message.ask_ok_cancel("Install These Apps? %s" % name_list_string, parent=self._view):
+            Message.show_info("Installation Cancelled.", parent=self._view)
+            return
+
+        status_list = self._model.install_packages(device, package_path_filename_list)
+
+        success_list_string, failure_list_string = self._do(name_list, status_list)
+
+        if success_list_string:
+            Message.show_info("%s Installed!" % success_list_string, parent=self._view)
+        if failure_list_string:
+            Message.show_error("Installation Failed for %s" % failure_list_string, parent=self._view)
 
     def refresh_installed_package_list(self):
-        if not self._device:
-            return
-
         self._refresh_installed_package_list()
-        Message.show_info("Installed Package List Refreshed!")
+        Message.show_info("Installed Package List Refreshed!", parent=self._view)
+
+    def _do(self, name_list, status_list):
+        assert len(name_list) == len(status_list)
+
+        success_list = []
+        failure_list = []
+
+        for status in status_list:
+            item = name_list.pop(0)
+            if status == Shell.SUCCESS:
+                success_list.append(item)
+            elif status == Shell.FAILED:
+                failure_list.append(item)
+
+        success_list_string = " ".join(success_list)
+        failure_list_string = " ".join(failure_list)
+
+        return success_list_string, failure_list_string
 
     def _refresh_installed_package_list(self, third_party=True, search=""):
-        if not self._device:
-            return
-
         installed_package_list = self._model.get_installed_package_list(self._device, third_party, search)
         Debug.debug(("installed_package_list[0: 3]: ", installed_package_list[0: 3]))
 
         self._view.installed_package_listbox.update_options(installed_package_list)
+
+    def _set_device_info(self):
+        device_info = "Device Selected : %s" % self._device if self._device else "No Device is Selected"
+        self._view.device_info.set(device_info)
 
 
 class MainFrame(Frame):
@@ -865,7 +863,7 @@ class MainFrame(Frame):
         def __debug():
             pass
 
-        debug_frame = UI.create_left(UI.FRAME, self._frame)
+        debug_frame = UI.create_left(UI.FRAME, self)
         self.debug_button = UI.create(UI.BUTTON, debug_frame, text="Debug", command=__debug)
 
 
