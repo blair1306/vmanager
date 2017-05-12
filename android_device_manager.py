@@ -24,6 +24,9 @@ class Debug(object):
 
     @staticmethod
     def debug(*args, **kwargs):
+        if not Debug:
+            return
+
         use_print = True
         if "use_print" in kwargs:
             use_print = kwargs["use_print"]
@@ -42,7 +45,7 @@ class Debug(object):
     @staticmethod
     def _get_caller_name():
         """
-        
+
         :return: Caller's caller, caller
         """
         stack = inspect.stack()
@@ -142,8 +145,7 @@ class ADB(object):
     def get_device_dict():
         """
         Get devices as a dict
-        Also updates it's own copy of device dict
-        
+
         :return:  {"device0": "device", "device1", "offline"}
         """
         device_dict = {}
@@ -151,11 +153,11 @@ class ADB(object):
         ADB._start_server_raise_exception()
 
         """
-        The output of "adb devices" would be: 
+        The output of "adb devices" would be:
         List of devices attached
         device0\tdevice
         device1\toffline
-        
+
         """
         adb_devices_output = Shell.execute_output("adb devices")
         device_list = adb_devices_output.splitlines()[1: -1]
@@ -172,7 +174,7 @@ class ADB(object):
     @staticmethod
     def get_installed_package_list(device, third_party=True, search=""):
         """
-        
+
         :param device:
         :param third_party: whether or not only includes third party apps
         :param search: filter result with " | grep search"
@@ -199,7 +201,7 @@ class ADB(object):
     @staticmethod
     def install_packages(device, package_path_filename_list):
         """
-        
+
         :return: Installation Status List
         """
         ADB._check_status_raise_exception(device)
@@ -217,7 +219,7 @@ class ADB(object):
     @staticmethod
     def uninstall_packages(device, package_list):
         """
-        
+
         :return: list of uninstallation status
         """
         ADB._check_status_raise_exception(device)
@@ -261,8 +263,8 @@ class ADB(object):
     @staticmethod
     def _install_package(device, full_path_name):
         """
-        
-        :param full_path_name: the full pathname of package to install: 
+
+        :param full_path_name: the full pathname of package to install:
         :return: Installation status
         """
         replace_existing = "-r"
@@ -272,10 +274,10 @@ class ADB(object):
     @staticmethod
     def _uninstall_package(device, package_name):
         """
-        
+
         :param package_name: the package to uninstall.
         :return: Uninstallation status
-        TODO: The return code for adb uninstall doesn't work the way this intends it to, adb uninstall returns 0 even 
+        TODO: The return code for adb uninstall doesn't work the way this intends it to, adb uninstall returns 0 even
               if the uninstallation fails.
         """
         command = "adb -s %s uninstall %s" % (device, package_name)
@@ -445,7 +447,7 @@ class ListBox(tk.Listbox):
 
     def update_options(self, options):
         self._delete_all_options()
-        self._insert_options(options)
+        self._append_options(options)
 
     def get_selections(self):
         """
@@ -471,7 +473,7 @@ class ListBox(tk.Listbox):
     def select_default(self):
         self.select_set(0)
 
-    def _insert_options(self, options):
+    def _append_options(self, options):
         if not options:
             return
 
@@ -559,8 +561,8 @@ class FileUtils(object):
     def extract_filename(full_path_name):
         """
         Extract out the path of pathname
-        :param full_path_name: 
-        :return: google.apk with input /home/Download/google.apk
+        :param full_path_name:
+        :return: google.apk with /home/Download/google.apk as input
         """
         name = os.path.basename(full_path_name)
         return name
@@ -642,8 +644,8 @@ class DeviceSelectionManager(object):
     def create_package_management_frame(self):
         """
         Create package management frame if there is a device currently under selection.
-        
-        :return: 
+
+        :return:
         """
         device = self._get_selected_device()
         if not device:
@@ -653,10 +655,6 @@ class DeviceSelectionManager(object):
         self._create_package_management_frame(device)
 
     def _create_package_management_frame(self, device):
-        if not device:
-            Message.show_error("Please Select a Device!")
-            return
-
         toplevel = Toplevel()
 
         frame = PackageManagementFrame(toplevel)
@@ -666,7 +664,7 @@ class DeviceSelectionManager(object):
     def _refresh_device_list(self):
         """
         We don't want the device refreshed message when this app starts up.
-        :return: 
+        :return:
         """
         device_dict = self._adb.get_device_dict()
 
@@ -740,6 +738,15 @@ class PackageManagementFrame(Frame):
         self.install_button = UI.create_left(UI.BUTTON, master, text="Install")
         self.uninstall_button = UI.create_left(UI.BUTTON, master, text="Uninstall")
 
+        self._init_installed_package_list_scrollbar()
+
+    def _init_installed_package_list_scrollbar(self):
+        listbox = self.installed_package_listbox
+        scrollbar = self.scrollbar
+
+        listbox.config(yscrollcommand=scrollbar.set)
+        scrollbar.config(command=listbox.yview)
+
 
 class PackageManager(object):
     def __init__(self, adb, package_management_frame, device):
@@ -758,8 +765,6 @@ class PackageManager(object):
         self._view.search_box.focus_set()
         self._view.search_box.bind("<Return>", self.search)
         # self.bind("<Return>", self.search)      # TODO: figure out why this doesn't work
-
-        self._init_installed_package_list_scrollbar()
 
     def _set_commands(self):
         self._view.refresh_button.config(command=self.refresh_installed_package_list)
@@ -846,13 +851,6 @@ class PackageManager(object):
         failure_list_string = " ".join(failure_list)
 
         return success_list_string, failure_list_string
-
-    def _init_installed_package_list_scrollbar(self):
-        listbox = self._view.installed_package_listbox
-        scrollbar = self._view.scrollbar
-
-        listbox.config(yscrollcommand=scrollbar.set)
-        scrollbar.config(command=listbox.yview)
 
     def _refresh_installed_package_list(self, third_party=True, search=""):
         installed_package_list = self._model.get_installed_package_list(self._device, third_party, search)
