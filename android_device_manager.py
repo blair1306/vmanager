@@ -67,8 +67,11 @@ class Shell(object):
         :return: return status
         """
         params = command.split()
-        status = subprocess.call(params)
-        return status
+        # retcode = subprocess.call(params)
+        try:
+            return subprocess.check_call(params)
+        except subprocess.CalledProcessError:
+            return Shell.FAILED
 
     @staticmethod
     def execute_output(command):
@@ -77,7 +80,7 @@ class Shell(object):
         :param command: "ls -l"
         :return:  the output of the shell command
         """
-        output = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE).stdout.read()
+        output = subprocess.check_output(command, shell=True)
         return output
 
 
@@ -87,9 +90,8 @@ class FileDialog(object):
         return tkFileDialog.askopenfilenames(*args, **kwargs)
 
     @staticmethod
-    def ask_open_apkfilenames(*args, **kwargs):
+    def ask_open_apkfilenames(**kwargs):
         return tkFileDialog.askopenfilenames(
-            *args,
             filetypes=[
                 ('Apk files', '.apk'),
                 ('All Files', '.*'),
@@ -322,8 +324,7 @@ class UI(object):
     def create(name, master, side=None, *args, **kwargs):
         factory = UI.get_factory(name)
         if factory is None:
-            Debug.debug("factory is None")
-            return None
+            raise ValueError
 
         widget = factory(master, *args, **kwargs)
 
