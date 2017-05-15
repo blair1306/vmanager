@@ -24,7 +24,7 @@ class Debug(object):
 
     @staticmethod
     def debug(*args, **kwargs):
-        if not Debug:
+        if not Debug.DEBUG:
             return
 
         use_print = True
@@ -34,8 +34,6 @@ class Debug(object):
 
         message = "%s: %s: " % Debug._get_caller_name()
         message += " ".join(map(repr, *args))
-        if not Debug.DEBUG:
-            return
 
         if use_print:
             print message
@@ -67,7 +65,6 @@ class Shell(object):
         :return: return status
         """
         params = command.split()
-        # retcode = subprocess.call(params)
         try:
             return subprocess.check_call(params)
         except subprocess.CalledProcessError:
