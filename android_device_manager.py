@@ -331,6 +331,9 @@ class UI(object):
         if name is UI.SCROLLBAR:
             widget.pack(fill=UI.Y)
 
+        if name is UI.BUTTON:
+            widget.pack(fill=UI.BOTH)
+
         return widget
 
     @staticmethod
@@ -524,7 +527,7 @@ class Frame(ttk.Frame):
         borderwidth = 3
 
         if "borderwidth" in kwargs:
-            borderwith = kwargs["borderwidth"]
+            borderwidth = kwargs["borderwidth"]
             del kwargs["borderwidth"]
 
         # ttk.Frame.__init__(self, master, borderwidth=borderwidth, padx=padx, pady=pady, *args, **kwargs)
@@ -628,6 +631,9 @@ class DeviceSelectionManager(object):
         self._set_commands()
         self._refresh_device_list()
 
+        # Bind double click event to listbox
+        self._view.device_listbox.bind('<Double-Button-1>', self.create_package_management_frame)
+
         # Solve the lost selection problem when focus gets lost
         self._view.device_listbox.config(exportselection=False)
 
@@ -639,7 +645,7 @@ class DeviceSelectionManager(object):
         self._view.refresh_button.config(command=self.refresh_device_list)
         self._view.select_button.config(command=self.create_package_management_frame)
 
-    def create_package_management_frame(self):
+    def create_package_management_frame(self, event=None):
         """
         Create package management frame if there is a device currently under selection.
 
