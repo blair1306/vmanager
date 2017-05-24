@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 #
 #
 #
@@ -508,15 +509,19 @@ class App(tk.Tk):
         classic = 'classic'
         self.style.theme_use(classic)
 
+        # Multiple-Language support
+        lan = MultiLingual.EN if "--english" in sys.argv else MultiLingual.CH
+        self._multi_lingual = MultiLingual(lan)
+
         # Models
         self._adb = ADB()       # model for both device selection and package management
         self._device_administrator = DeviceAdministrator()
         # Views
         self._frame = MainFrame(self)
         # Controllers
-        self._device_selection_manager = DeviceSelectionManager(self._adb, self._frame.device_selection_frame)
+        self._device_selection_manager = DeviceSelectionManager(self._adb, self._frame.device_selection_frame, self._multi_lingual)
         self._device_manager = \
-            DeviceAdministrationManager(self._device_administrator, self._frame.device_administration_frame)
+            DeviceAdministrationManager(self._device_administrator, self._frame.device_administration_frame, self._multi_lingual)
 
     def run(self):
         self.mainloop()
@@ -545,11 +550,11 @@ class DeviceAdministrationFrame(FrameLeft):
     def __init__(self, master, *args, **kwargs):
         FrameLeft.__init__(self, master, *args, **kwargs)
 
-        UI.create(UI.LABEL, self, text="Device Management")
+        self.title = UI.create(UI.LABEL, self)
         UI.create(UI.LABEL, self)
-        self.create_template_button = UI.create(UI.BUTTON, self, text="Create Template")
-        self.run_template_button = UI.create(UI.BUTTON, self, text="Run template")
-        self.reboot_device_button = UI.create(UI.BUTTON, self, text="Reboot device")
+        self.create_template_button = UI.create(UI.BUTTON, self)
+        self.run_template_button = UI.create(UI.BUTTON, self)
+        self.reboot_device_button = UI.create(UI.BUTTON, self)
 
 
 class FileUtils(object):
@@ -599,11 +604,19 @@ class DeviceAdministrator(object):
 
 
 class DeviceAdministrationManager(object):
-    def __init__(self, device_administrator, device_administration_frame):
+    def __init__(self, device_administrator, device_administration_frame, multi_lingual):
         self._model = device_administrator
         self._view = device_administration_frame
+        self._multi_lingual = multi_lingual
 
         self._set_commands()
+        self._set_texts()
+
+    def _set_texts(self):
+        self._view.title.config(text=self._multi_lingual.get_text(MultiLingual.DEVICE_ADMINISTRATION))
+        self._view.create_template_button.config(text=self._multi_lingual.get_text(MultiLingual.CREATE_TEMPLATE))
+        self._view.run_template_button.config(text=self._multi_lingual.get_text(MultiLingual.RUN_TEMPLATE))
+        self._view.reboot_device_button.config(text=self._multi_lingual.get_text(MultiLingual.REBOOT_DEVICE))
 
     def _set_commands(self):
         self._view.create_template_button.config(command=self.create_template)
@@ -612,21 +625,22 @@ class DeviceAdministrationManager(object):
 
     def create_template(self):
         self._model.create_template()
-        Message.show_info("Done!")
+        Message.show_info(self._multi_lingual.get_text(MultiLingual.DONE))
 
     def run_template(self):
         self._model.run_template()
-        Message.show_info("Done!")
+        Message.show_info(self._multi_lingual.get_text(MultiLingual.DONE))
 
     def reboot_device(self):
         self._model.reboot_device()
-        Message.show_info("Done!")
+        Message.show_info(self._multi_lingual.get_text(MultiLingual.DONE))
 
 
 class DeviceSelectionManager(object):
-    def __init__(self, adb, device_selection_frame):
+    def __init__(self, adb, device_selection_frame, multi_lingual):
         self._adb = adb
         self._view = device_selection_frame
+        self._multi_lingual = multi_lingual
 
         self._set_commands()
         self._refresh_device_list()
@@ -637,9 +651,17 @@ class DeviceSelectionManager(object):
         # Solve the lost selection problem when focus gets lost
         self._view.device_listbox.config(exportselection=False)
 
+        self._set_texts()
+
     def refresh_device_list(self):
         self._refresh_device_list()
-        Message.show_info("Device List Refreshed!")
+        Message.show_info(self._multi_lingual.get_text(MultiLingual.DONE))
+
+    def _set_texts(self):
+        self._view.title.config(text=self._multi_lingual.get_text(MultiLingual.PACKAGE_MANAGEMENT))
+        self._view.banner.config(text=self._multi_lingual.get_text(MultiLingual.LIST_OF_DEVICES))
+        self._view.select_button.config(text=self._multi_lingual.get_text(MultiLingual.SELECT))
+        self._view.refresh_button.config(text=self._multi_lingual.get_text(MultiLingual.REFRESH))
 
     def _set_commands(self):
         self._view.refresh_button.config(command=self.refresh_device_list)
@@ -653,7 +675,7 @@ class DeviceSelectionManager(object):
         """
         device = self._get_selected_device()
         if not device:
-            Message.show_warning("Please Select a Device.")
+            Message.show_warning(self._multi_lingual.get_text(MultiLingual.PLEASE_SELECT_A_DEVICE))
             return
 
         self._create_package_management_frame(device)
@@ -663,7 +685,7 @@ class DeviceSelectionManager(object):
 
         frame = PackageManagementFrame(toplevel)
 
-        PackageManager(self._adb, frame, device)
+        PackageManager(self._adb, frame, device, self._multi_lingual)
 
     def _refresh_device_list(self):
         """
@@ -702,14 +724,14 @@ class DeviceSelectionFrame(FrameLeft):
 
         master = UI.create(UI.FRAME, self)
 
-        UI.create(UI.LABEL, master, text="Package Management")
+        self.title = UI.create(UI.LABEL, master)
         UI.create(UI.LABEL, master)
-        UI.create(UI.LABEL, master, text="List of Devices", anchor=None)
+        self.banner = UI.create(UI.LABEL, master, anchor=None)
         self.device_listbox = UI.create(UI.LISTBOX, master)
 
         master = UI.create(UI.FRAME, self)
-        self.select_button = UI.create_left(UI.BUTTON, master, text="Select")
-        self.refresh_button = UI.create_left(UI.BUTTON, master, text="Refresh")
+        self.select_button = UI.create_left(UI.BUTTON, master)
+        self.refresh_button = UI.create_left(UI.BUTTON, master)
 
 
 class Toplevel(tk.Toplevel):
@@ -735,12 +757,12 @@ class PackageManagementFrame(Frame):
         master = UI.create(UI.FRAME, self)
 
         self.search_box = UI.create_left(UI.ENTRY, master)
-        self.search_button = UI.create_left(UI.BUTTON, master, text="Search")
+        self.search_button = UI.create_left(UI.BUTTON, master)
 
         master = UI.create(UI.FRAME, self)
-        self.refresh_button = UI.create_left(UI.BUTTON, master, text="Refresh Installed Package List")
-        self.install_button = UI.create_left(UI.BUTTON, master, text="Install")
-        self.uninstall_button = UI.create_left(UI.BUTTON, master, text="Uninstall")
+        self.refresh_button = UI.create_left(UI.BUTTON, master)
+        self.install_button = UI.create_left(UI.BUTTON, master)
+        self.uninstall_button = UI.create_left(UI.BUTTON, master)
 
         self._init_installed_package_list_scrollbar()
 
@@ -753,10 +775,11 @@ class PackageManagementFrame(Frame):
 
 
 class PackageManager(object):
-    def __init__(self, adb, package_management_frame, device):
+    def __init__(self, adb, package_management_frame, device, multi_lingual):
         assert device
 
         self._device = device
+        self._multi_lingual = multi_lingual
 
         self._model = adb
         self._view = package_management_frame
@@ -769,6 +792,8 @@ class PackageManager(object):
         self._view.search_box.focus_set()
         self._view.search_box.bind("<Return>", self.search)
         # self.bind("<Return>", self.search)      # TODO: figure out why this doesn't work
+
+        self._set_texts()
 
     def _set_commands(self):
         self._view.refresh_button.config(command=self.refresh_installed_package_list)
@@ -791,20 +816,20 @@ class PackageManager(object):
         package_list = self._view.installed_package_listbox.get_selections()
 
         if not package_list:
-            Message.show_warning("Please Select at Least One Package to Uninstall.", parent=self._view)
+            Message.show_warning(self._multi_lingual.get_text(MultiLingual.PLEASE_SELECT_AT_LEAST_ONE_PACKAGE_TO_UNINSTALL), parent=self._view)
             return
 
         package_list_string = " ".join(package_list)
 
-        if not Message.ask_ok_cancel("Uninstall These Packages: %s?" % package_list_string, parent=self._view):
-            Message.show_info("Uninstallation Cancelled.", parent=self._view)
+        if not Message.ask_ok_cancel("%s: %s?" % self._multi_lingual.get_text(MultiLingual.UNINSTALL_THESE_PACKAGES), package_list_string, parent=self._view):
+            Message.show_info(self._multi_lingual.get_text(MultiLingual.CANCELLED), parent=self._view)
             return
 
         status_list = self._model.uninstall_packages(device, package_list)
         success_list_string, failure_list_string = self._do(package_list, status_list)
 
         if success_list_string:
-            Message.show_info("%s Uninstalled!" % success_list_string, parent=self._view)
+            Message.show_info("%s %s!" % (success_list_string, self._multi_lingual.get_text(MultiLingual.DONE)), parent=self._view)
         if failure_list_string:
             Message.show_error("Uninstallation Failed for %s" % failure_list_string, parent=self._view)
 
@@ -815,14 +840,14 @@ class PackageManager(object):
         package_path_filename_list = FileDialog.ask_open_apkfilenames(initialdir=initialdir, parent=self._view)
 
         if not package_path_filename_list:
-            Message.show_info("Cancelled.", parent=self._view)
+            Message.show_info(self._multi_lingual.get_text(MultiLingual.CANCELLED), parent=self._view)
             return
 
         name_list = map(FileUtils.extract_filename, package_path_filename_list)
         name_list_string = "    ".join(name_list)
 
-        if not Message.ask_ok_cancel("Install These Apps? %s" % name_list_string, parent=self._view):
-            Message.show_info("Installation Cancelled.", parent=self._view)
+        if not Message.ask_ok_cancel("%s? %s" % (self._multi_lingual.get_text(MultiLingual.INSTALL_THESE_PACKAGES), name_list_string), parent=self._view):
+            Message.show_info(self._multi_lingual.get_text(MultiLingual.CANCELLED), parent=self._view)
             return
 
         status_list = self._model.install_packages(device, package_path_filename_list)
@@ -830,13 +855,13 @@ class PackageManager(object):
         success_list_string, failure_list_string = self._do(name_list, status_list)
 
         if success_list_string:
-            Message.show_info("%s Installed!" % success_list_string, parent=self._view)
+            Message.show_info("%s %s!" % (success_list_string, self._multi_lingual.get_text(MultiLingual.INSTALLED)), parent=self._view)
         if failure_list_string:
-            Message.show_error("Installation Failed for %s" % failure_list_string, parent=self._view)
+            Message.show_error("%s %s" % (self._multi_lingual.get_text(MultiLingual.FAILED), failure_list_string), parent=self._view)
 
     def refresh_installed_package_list(self):
         self._refresh_installed_package_list()
-        Message.show_info("Installed Package List Refreshed!", parent=self._view)
+        Message.show_info(self._multi_lingual.get_text(MultiLingual.DONE), parent=self._view)
 
     def _do(self, name_list, status_list):
         assert len(name_list) == len(status_list)
@@ -856,6 +881,12 @@ class PackageManager(object):
 
         return success_list_string, failure_list_string
 
+    def _set_texts(self):
+        self._view.search_button.config(text=self._multi_lingual.get_text(MultiLingual.SEARCH))
+        self._view.refresh_button.config(text=self._multi_lingual.get_text(MultiLingual.REFRESH_INSTALLED_PACKAGE_LIST))
+        self._view.install_button.config(text=self._multi_lingual.get_text(MultiLingual.INSTALL))
+        self._view.uninstall_button.config(text=self._multi_lingual.get_text(MultiLingual.UNINSTALL))
+
     def _refresh_installed_package_list(self, third_party=True, search=""):
         installed_package_list = self._model.get_installed_package_list(self._device, third_party, search)
         Debug.debug(("installed_package_list[0: 3]: ", installed_package_list[0: 3]))
@@ -863,7 +894,7 @@ class PackageManager(object):
         self._view.installed_package_listbox.update_options(installed_package_list)
 
     def _set_device_info(self):
-        device_info = "Device Selected : %s" % self._device if self._device else "No Device is Selected"
+        device_info = "%s : %s" % (self._multi_lingual.get_text(MultiLingual.DEVICE_SELECTED), self._device if self._device else "No Device is Selected")
         self._view.device_info.set(device_info)
 
 
@@ -887,6 +918,155 @@ class MainFrame(Frame):
 
         debug_frame = UI.create_left(UI.FRAME, self)
         self.debug_button = UI.create(UI.BUTTON, debug_frame, text="Debug", command=__debug)
+
+
+class MultiLingual(object):
+    EN = "en"
+    CH = "ch"
+
+    LANGUAGES = (EN, CH)
+
+    DEVICE_ADMINISTRATION, \
+    CREATE_TEMPLATE, \
+    RUN_TEMPLATE, \
+    REBOOT_DEVICE, \
+    \
+    PACKAGE_MANAGEMENT, \
+    SELECT, \
+    REFRESH, \
+    LIST_OF_DEVICES, \
+    \
+    SEARCH, \
+    REFRESH_INSTALLED_PACKAGE_LIST, \
+    INSTALL, \
+    UNINSTALL, \
+    \
+    DONE, \
+    \
+    PLEASE_SELECT_A_DEVICE, \
+    \
+    PLEASE_SELECT_AT_LEAST_ONE_PACKAGE_TO_UNINSTALL, \
+    \
+    UNINSTALLED_THESE_PACKAGES, \
+    CANCELLED, \
+    INSTALL_THESE_PACKAGES, \
+    FAILED, \
+    DEVICE_SELECTED, \
+        = range(20)
+
+    NAMES = (
+        DEVICE_ADMINISTRATION,
+        CREATE_TEMPLATE,
+        RUN_TEMPLATE,
+        REBOOT_DEVICE,
+        PACKAGE_MANAGEMENT,
+        SELECT,
+        REFRESH,
+        LIST_OF_DEVICES,
+        SEARCH,
+        REFRESH_INSTALLED_PACKAGE_LIST,
+        INSTALL,
+        UNINSTALL,
+        DONE,
+        PLEASE_SELECT_A_DEVICE,
+        PLEASE_SELECT_AT_LEAST_ONE_PACKAGE_TO_UNINSTALL,
+        UNINSTALLED_THESE_PACKAGES,
+        CANCELLED,
+        INSTALL_THESE_PACKAGES,
+        FAILED,
+        DEVICE_SELECTED,
+    )
+
+    def __init__(self, language):
+        assert language in MultiLingual.LANGUAGES
+
+        self._language = language
+
+    def get_text(self, name):
+        assert name in MultiLingual.NAMES
+
+        return {
+            MultiLingual.DEVICE_ADMINISTRATION: {
+                MultiLingual.EN: "Device Administration",
+                MultiLingual.CH: "设备管理"
+            },
+            MultiLingual.CREATE_TEMPLATE: {
+                MultiLingual.EN: "Create Template",
+                MultiLingual.CH: "制作模板"
+            },
+            MultiLingual.RUN_TEMPLATE: {
+                MultiLingual.EN: "Run Template",
+                MultiLingual.CH: "运行模版"
+            },
+            MultiLingual.REBOOT_DEVICE: {
+                MultiLingual.EN: "Reboot Device",
+                MultiLingual.CH: "重启设备"
+            },
+            MultiLingual.PACKAGE_MANAGEMENT : {
+                MultiLingual.EN: "Package management",
+                MultiLingual.CH: "软件包管理器"
+            },
+            MultiLingual.SELECT : {
+                MultiLingual.EN: "Select",
+                MultiLingual.CH: "选择"
+            },
+            MultiLingual.REFRESH : {
+                MultiLingual.EN: "Refresh",
+                MultiLingual.CH: "刷新"
+            },
+            MultiLingual.LIST_OF_DEVICES : {
+                MultiLingual.EN: "List of Devices",
+                MultiLingual.CH: "设备列表"
+            },
+            MultiLingual.INSTALL : {
+                MultiLingual.EN: "Install",
+                MultiLingual.CH: "安装"
+            },
+            MultiLingual.SEARCH: {
+                MultiLingual.EN: "Search",
+                MultiLingual.CH: "搜索"
+            },
+            MultiLingual.REFRESH_INSTALLED_PACKAGE_LIST : {
+                MultiLingual.EN: "Refresh Installed Package List",
+                MultiLingual.CH: "刷新已安装程序列表"
+            },
+            MultiLingual.UNINSTALL : {
+                MultiLingual.EN: "Uninstall",
+                MultiLingual.CH: "卸载"
+            },
+            MultiLingual.DONE: {
+                MultiLingual.EN: "Done",
+                MultiLingual.CH: "完成"
+            },
+            MultiLingual.PLEASE_SELECT_A_DEVICE: {
+                MultiLingual.EN: "Please Select a Device",
+                MultiLingual.CH: "请选择一个设备"
+            },
+            MultiLingual.PLEASE_SELECT_AT_LEAST_ONE_PACKAGE_TO_UNINSTALL: {
+                MultiLingual.EN: "Please Select at Least One Package to Uninstall",
+                MultiLingual.CH: "请至少选择一个包"
+            },
+            MultiLingual.UNINSTALLED_THESE_PACKAGES: {
+                MultiLingual.EN: "Uninstall These Packages",
+                MultiLingual.CH: "卸载这些包"
+            },
+            MultiLingual.CANCELLED: {
+                MultiLingual.EN: "Cancelled",
+                MultiLingual.CH: "已取消"
+            },
+            MultiLingual.INSTALL_THESE_PACKAGES : {
+                MultiLingual.EN: "Install These Packages",
+                MultiLingual.CH: "安装这些包"
+            },
+            MultiLingual.FAILED: {
+                MultiLingual.EN: "Failed",
+                MultiLingual.CH: "失败"
+            },
+            MultiLingual.DEVICE_SELECTED: {
+                MultiLingual.EN: "Device Selected",
+                MultiLingual.CH: "已选择设备"
+            },
+        }.get(name).get(self._language)
 
 
 def main():
