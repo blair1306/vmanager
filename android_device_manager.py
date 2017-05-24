@@ -67,7 +67,7 @@ class Shell(object):
         params = command.split()
         try:
             return subprocess.check_call(params)
-        except subprocess.CalledProcessError:
+        except:
             return Shell.FAILED
 
     @staticmethod
@@ -256,10 +256,8 @@ class ADB(object):
 
     @staticmethod
     def _start_server_raise_exception():
-        try:
-            ADB._start_server()
-        except:
-            raise ServerError("Couldn't Start ADB Server")
+        if Shell.FAILED == ADB._start_server():
+            raise ServerError("Couldn't Start ADB Server.")
 
     @staticmethod
     def _install_package(device, full_path_name):
