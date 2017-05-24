@@ -256,8 +256,10 @@ class ADB(object):
 
     @staticmethod
     def _start_server_raise_exception():
-        if Shell.FAILED == ADB._start_server():
-            raise ServerError("Couldn't Start ADB Server.")
+        try:
+            ADB._start_server()
+        except:
+            raise ServerError("Couldn't Start ADB Server")
 
     @staticmethod
     def _install_package(device, full_path_name):
@@ -809,7 +811,7 @@ class PackageManager(object):
             Message.show_error("Uninstallation Failed for %s" % failure_list_string, parent=self._view)
 
     def install_packages(self):
-        initialdir = "netdisk/app-files"
+        initialdir = "/netdisk/app-files"
         device = self._device
 
         package_path_filename_list = FileDialog.ask_open_apkfilenames(initialdir=initialdir, parent=self._view)
