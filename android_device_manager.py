@@ -821,7 +821,7 @@ class PackageManager(object):
 
         package_list_string = " ".join(package_list)
 
-        if not Message.ask_ok_cancel("%s: %s?" % self._multi_lingual.get_text(MultiLingual.UNINSTALL_THESE_PACKAGES), package_list_string, parent=self._view):
+        if not Message.ask_ok_cancel("%s: %s?" % (self._multi_lingual.get_text(MultiLingual.UNINSTALL_THESE_PACKAGES), package_list_string), parent=self._view):
             Message.show_info(self._multi_lingual.get_text(MultiLingual.CANCELLED), parent=self._view)
             return
 
@@ -947,7 +947,7 @@ class MultiLingual(object):
     \
     PLEASE_SELECT_AT_LEAST_ONE_PACKAGE_TO_UNINSTALL, \
     \
-    UNINSTALLED_THESE_PACKAGES, \
+    UNINSTALL_THESE_PACKAGES, \
     CANCELLED, \
     INSTALL_THESE_PACKAGES, \
     FAILED, \
@@ -955,26 +955,7 @@ class MultiLingual(object):
         = range(20)
 
     NAMES = (
-        DEVICE_ADMINISTRATION,
-        CREATE_TEMPLATE,
-        RUN_TEMPLATE,
-        REBOOT_DEVICE,
-        PACKAGE_MANAGEMENT,
-        SELECT,
-        REFRESH,
-        LIST_OF_DEVICES,
-        SEARCH,
-        REFRESH_INSTALLED_PACKAGE_LIST,
-        INSTALL,
-        UNINSTALL,
-        DONE,
-        PLEASE_SELECT_A_DEVICE,
-        PLEASE_SELECT_AT_LEAST_ONE_PACKAGE_TO_UNINSTALL,
-        UNINSTALLED_THESE_PACKAGES,
-        CANCELLED,
-        INSTALL_THESE_PACKAGES,
-        FAILED,
-        DEVICE_SELECTED,
+        range(20)
     )
 
     def __init__(self, language):
@@ -1046,7 +1027,7 @@ class MultiLingual(object):
                 MultiLingual.EN: "Please Select at Least One Package to Uninstall",
                 MultiLingual.CH: "请至少选择一个包"
             },
-            MultiLingual.UNINSTALLED_THESE_PACKAGES: {
+            MultiLingual.UNINSTALL_THESE_PACKAGES: {
                 MultiLingual.EN: "Uninstall These Packages",
                 MultiLingual.CH: "卸载这些包"
             },
