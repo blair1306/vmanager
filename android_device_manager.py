@@ -125,15 +125,15 @@ class ADBException(Exception):
     pass
 
 
-class DeviceNotFoundError(ADBException):
+class ADBDeviceNotFoundError(ADBException):
     pass
 
 
-class DeviceOfflineError(ADBException):
+class ADBDeviceOfflineError(ADBException):
     pass
 
 
-class ServerError(ADBException):
+class ADBServerError(ADBException):
     pass
 
 
@@ -245,11 +245,11 @@ class ADB(object):
 
         device_dict = ADB.get_device_dict()
         if device not in device_dict:
-            raise DeviceNotFoundError("%s not found." % device)
+            raise ADBDeviceNotFoundError("%s not found." % device)
 
         status = device_dict[device]
         if status == ADBDeviceStatus.OFFLINE:
-            raise DeviceOfflineError("%s is offline." % device)
+            raise ADBDeviceOfflineError("%s is offline." % device)
 
     @staticmethod
     def _start_server():
@@ -258,7 +258,7 @@ class ADB(object):
     @staticmethod
     def _start_server_raise_exception():
         if Shell.FAILED == ADB._start_server():
-            raise ServerError("Couldn't Start ADB Server.")
+            raise ADBServerError("Couldn't Start ADB Server.")
 
     @staticmethod
     def _install_package(device, full_path_name):
@@ -934,7 +934,7 @@ class ConnectToServerFrame(Frame):
         self.port = UI.create(UI.ENTRY, parent)
 
         frame = UI.create(UI.FRAME, self)
-        self.confirm_button = UI.create_left(UI.BUTTON, frame)
+        self.connect = UI.create_left(UI.BUTTON, frame)
 
 
 class MultiLingual(object):
@@ -943,6 +943,7 @@ class MultiLingual(object):
 
     LANGUAGES = (EN, CH)
 
+    TEXTS = \
     DEVICE_ADMINISTRATION, \
     CREATE_TEMPLATE, \
     RUN_TEMPLATE, \
@@ -969,10 +970,14 @@ class MultiLingual(object):
     INSTALL_THESE_PACKAGES, \
     FAILED, \
     DEVICE_SELECTED, \
-        = range(20)
+    \
+    SERVER_ADDRESS, \
+    PORT, \
+    CONNECT, \
+        = range(23)  # Increase this number everytime when adding new items to the list.
 
     NAMES = (
-        range(20)
+        range(len(TEXTS))
     )
 
     def __init__(self, language):
@@ -984,6 +989,18 @@ class MultiLingual(object):
         assert name in MultiLingual.NAMES
 
         return {
+            MultiLingual.CONNECT: {
+                MultiLingual.EN: "Connect",
+                MultiLingual.CH: "选择"
+            },
+            MultiLingual.SERVER_ADDRESS: {
+                MultiLingual.EN: "Server Address",
+                MultiLingual.CH: "服务器地址"
+            },
+            MultiLingual.PORT: {
+                MultiLingual.EN: "Port",
+                MultiLingual.CH: "端口号"
+            },
             MultiLingual.DEVICE_ADMINISTRATION: {
                 MultiLingual.EN: "Device Administration",
                 MultiLingual.CH: "设备管理"
@@ -1067,10 +1084,40 @@ class MultiLingual(object):
         }.get(name).get(self._language)
 
 
+class ConnectToServerManager(object):
+    def __init__(self, connect_to_server_frame, multi_linaugal):
+        self._view = connect_to_server_frame
+        self._multi_lingual = multi_linaugal
+        self._set_texts()
+        self._set_commands()
+
+    def _set_texts(self):
+        self._view.server_address_banner.config(text=self._multi_lingual.get_text(MultiLingual.SERVER_ADDRESS))
+        self._view.port_banner.config(text=self._multi_lingual.get_text(MultiLingual.PORT))
+        self._view.connect.config(text=self._multi_lingual.get_text(MultiLingual.CONNECT))
+
+    def _set_commands(self):
+        self._view.connect.config(command=self._start_client)
+
+    def _start_client(self):
+        root = self._view.master
+        root.destroy()
+
+        app = App()
+        app.run()
+
+
 def client():
     print "client"
-    toplevel = Toplevel()
-    connect_to_server_frame = ConnectToServerFrame(toplevel)
+    root = tk.Tk()
+
+    # Multiple-Language support
+    lan = MultiLingual.EN if "--english" in sys.argv else MultiLingual.CH
+    multi_lingual = MultiLingual(lan)
+
+    connect_to_server_frame = ConnectToServerFrame(root)
+    connect_to_server_manager = ConnectToServerManager(connect_to_server_frame, multi_lingual)
+    root.mainloop()
 
 
 def server():
@@ -1082,7 +1129,7 @@ def main():
     app.run()
 
 if __name__ == "__main__":
-    if "server" in sys.argv:
+    if "--server" in sys.argv:
         server()
     else:
         client()
