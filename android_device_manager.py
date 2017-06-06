@@ -920,6 +920,23 @@ class MainFrame(Frame):
         self.debug_button = UI.create(UI.BUTTON, debug_frame, text="Debug", command=__debug)
 
 
+class ConnectToServerFrame(Frame):
+    def __init__(self, master):
+        Frame.__init__(self, master)
+
+        frame = UI.create(UI.FRAME, self)
+        parent = UI.create_left(UI.FRAME, frame)
+        self.server_address_banner = UI.create(UI.LABEL, parent)
+        self.server_address = UI.create(UI.ENTRY, parent)
+
+        parent = UI.create_left(UI.FRAME, frame)
+        self.port_banner = UI.create(UI.LABEL, parent)
+        self.port = UI.create(UI.ENTRY, parent)
+
+        frame = UI.create(UI.FRAME, self)
+        self.confirm_button = UI.create_left(UI.BUTTON, frame)
+
+
 class MultiLingual(object):
     EN = "en"
     CH = "ch"
@@ -1050,9 +1067,22 @@ class MultiLingual(object):
         }.get(name).get(self._language)
 
 
+def client():
+    print "client"
+    toplevel = Toplevel()
+    connect_to_server_frame = ConnectToServerFrame(toplevel)
+
+
+def server():
+    print "server"
+
+
 def main():
     app = App()
     app.run()
 
 if __name__ == "__main__":
-    main()
+    if "server" in sys.argv:
+        server()
+    else:
+        client()
