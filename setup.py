@@ -2,7 +2,8 @@ from setuptools import setup
 
 
 setup(
-    scripts = [
+    name="Android Device Manager",
+    scripts=[
         "android_device_manager.py"
-    ]
+    ],
 )
