@@ -18,6 +18,10 @@ import tkFileDialog
 import tkFont
 import subprocess
 import inspect
+import socket
+
+
+PROTOCOL_VERSION = "0.1"
 
 
 class Debug(object):
@@ -257,7 +261,7 @@ class ADB(object):
 
     @staticmethod
     def _start_server_raise_exception():
-        if Shell.FAILED == ADB._start_server():
+        if (Shell.FAILED == ADB._start_server()) and (Shell.FAILED == ADB._start_server()):
             raise ADBServerError("Couldn't Start ADB Server.")
 
     @staticmethod
@@ -1108,6 +1112,9 @@ class ConnectToServerManager(object):
 
 
 def client():
+    client = Client()
+    print client.execute_output("ps -e")
+
     print "client"
     root = tk.Tk()
 
@@ -1121,7 +1128,279 @@ def client():
 
 
 def server():
-    print "server"
+    server = Server()
+    server.serve()
+
+
+def get_default_port():
+    DEFAULT_PORT = 8909
+    return DEFAULT_PORT
+
+
+def get_max_buffersize():
+    MAX_BUFFERSIZE = 1024 * 4
+    return MAX_BUFFERSIZE
+
+
+class AMessage(object):
+    GRETTING = "00000000"
+    COMMAND  = "00000001"
+
+    OK       = "00000010"
+
+    TYPE_LEN = len(GRETTING)
+    LEN_LEN = 4
+    COMMAND_START = TYPE_LEN + LEN_LEN
+    TYPES = (GRETTING, COMMAND)
+
+    @staticmethod
+    def create_message(type, length=0, command=""):
+        assert type in AMessage.TYPES
+        assert length >= 0
+        message = "%s%4d%s" % (type, length, command)
+        message += " " * (get_max_buffersize() - len(message))
+        assert len(message) == get_max_buffersize()
+
+        return message
+
+    @staticmethod
+    def create_ok_message():
+        return AMessage.create_message(AMessage.OK)
+
+    @staticmethod
+    def create_command_message(command):
+        assert command
+        return AMessage.create_message(AMessage.COMMAND, len(command), command)
+
+    @staticmethod
+    def create_gretting_message():
+        return AMessage.create_message(AMessage.GRETTING, len(PROTOCOL_VERSION), PROTOCOL_VERSION)
+
+    @staticmethod
+    def get_type_and_length(message):
+        type = message[: AMessage.TYPE_LEN]
+        assert type in AMessage.TYPES
+        length = int(message[AMessage.TYPE_LEN:])
+        assert length >= 0
+
+        return type, length
+
+    @staticmethod
+    def get_command_from_message(message):
+        type = message[: AMessage.TYPE_LEN]
+        assert type == AMessage.COMMAND
+
+        l = message[AMessage.TYPE_LEN: AMessage.COMMAND_START]
+        l = int(l)
+
+        assert l > 0
+
+        command = message[AMessage.COMMAND_START: AMessage.COMMAND_START+l]
+
+        return command
+
+    @staticmethod
+    def get_version_from_message(message):
+        type = message[: AMessage.TYPE_LEN]
+        assert type == AMessage.GRETTING
+
+        l = message[AMessage.TYPE_LEN: AMessage.TYPE_LEN+AMessage.LEN_LEN]
+        l = int(l)
+        version = message[AMessage.COMMAND_START: AMessage.COMMAND_START+l]
+
+        return version
+
+    @staticmethod
+    def is_ok_message(message):
+        type = message[: AMessage.TYPE_LEN]
+        assert type == AMessage.OK
+
+        return True
+
+
+class APayload(object):
+    WRITE = "ffffffff"
+    CLOSE = "fffffff0"
+
+    TYPES = (WRITE, CLOSE)
+
+    TYPE_LEN = len(CLOSE)
+    ACTUAL_LEN_LEN = 4      # We use 4 digits to represent the length of the actual payload.
+    ACTUAL_PAYLOAD_START = TYPE_LEN + ACTUAL_LEN_LEN
+    MAX_ACTUAL_PAYLOAD_LEN = get_max_buffersize() - TYPE_LEN - ACTUAL_LEN_LEN
+
+    @staticmethod
+    def create_payload(data):
+        """
+        :return: a list of strings to be sent over socket
+        """
+        l = len(data)
+        where = 0
+        payload_list = []
+        payload_template = "%s%4d%s"    # 4 for the length of actual payload
+
+        if l == 0:
+            return payload_list
+
+        while l > 0:
+            if l > APayload.MAX_ACTUAL_PAYLOAD_LEN:
+                actual_len = APayload.MAX_ACTUAL_PAYLOAD_LEN
+            else:
+                actual_len = l
+
+            payload = payload_template % (APayload.WRITE, actual_len, data[where: where+actual_len])
+            where += actual_len
+            l -= actual_len
+
+            ll = len(payload)
+            payload = payload + " " * (get_max_buffersize() - ll) if ll < get_max_buffersize() else payload
+            assert len(payload) == get_max_buffersize()
+
+            payload_list.append(payload)
+
+        payload = payload_template % (APayload.CLOSE, 0, "")
+        payload = payload + " " * (get_max_buffersize() - len(payload)) if len(payload) < get_max_buffersize() else payload
+        payload_list.append(payload)
+
+        return payload_list
+
+    @staticmethod
+    def get_data_from_payload_list(payload_list):
+        data = ""
+
+        if not payload_list:
+            return data
+
+        assert payload_list[-1][:len(APayload.CLOSE)] == APayload.CLOSE
+        payload_list = payload_list[:-1]
+
+        for payload in payload_list:
+            assert payload[:len(APayload.WRITE)] == APayload.WRITE
+            l = int(payload[APayload.TYPE_LEN: APayload.TYPE_LEN+APayload.ACTUAL_LEN_LEN])
+            assert 0 < l <= APayload.MAX_ACTUAL_PAYLOAD_LEN
+            data += payload[APayload.ACTUAL_PAYLOAD_START: APayload.ACTUAL_PAYLOAD_START+l]
+
+        return data
+
+
+def do_send(sock, data):
+    l = len(data)
+    if l == 0:
+        return
+
+    l_total_sent = 0
+
+    while l_total_sent < l:
+        l_sent = sock.send(data[l_total_sent:])
+        l_total_sent += l_sent
+
+    assert l == l_total_sent
+
+
+def do_recv(sock, length):
+    data = ""
+    assert length >= 0
+
+    l_total_recv = 0
+    while l_total_recv < length:
+        rec = sock.recv(length-l_total_recv)
+        l_recv = len(rec)
+        l_total_recv += l_recv
+        data += rec
+
+    assert l_total_recv == length
+
+    return data
+
+
+class Server(object):
+    ADDRESS = ""
+    PORT = get_default_port()
+    MAX_BUFFERSIZE = get_max_buffersize()
+
+    def __init__(self, port=None):
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        host = Server.ADDRESS
+        port = Server.PORT if not port else port
+
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+
+        self.server_socket.bind((host, port))
+        self.server_socket.listen(5)
+
+    def serve(self):
+        while True:
+            (client_socket, address) = self.server_socket.accept()
+            message = self.receive(client_socket)
+
+            reply_gretting_message = AMessage.create_gretting_message()
+            self.send(client_socket, reply_gretting_message)
+
+            if not AMessage.get_version_from_message(message) == PROTOCOL_VERSION:
+                return
+
+            command_message = self.receive(client_socket)
+            command = AMessage.get_command_from_message(command_message)
+
+            data = Shell.execute_output(command)
+            payload_list = APayload.create_payload(data)
+            for payload in payload_list:
+                self.send(client_socket, payload)
+
+    @staticmethod
+    def receive(client_sock):
+        return do_recv(client_sock, get_max_buffersize())
+
+    @staticmethod
+    def send(client_socket, data):
+        return do_send(client_socket, data)
+
+
+class Client(object):
+    SERVER_PORT = get_default_port()
+    SERVER_ADDRESS = "localhost"
+
+    def __init__(self, address=None, port=None):
+        self.address = Client.SERVER_ADDRESS if not address else address
+        self.port = Client.SERVER_PORT if not port else port
+
+    def execute_output(self, command):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((self.address, self.port))
+
+        gretting_message = AMessage.create_gretting_message()
+        self.send(sock, gretting_message)
+
+        reply_message = self.recv(sock)
+        version = AMessage.get_version_from_message(reply_message)
+
+        if version != PROTOCOL_VERSION:
+            raise
+
+        command_message = AMessage.create_command_message(command)
+        self.send(sock, command_message)
+
+        payload_list = []
+        while True:
+            payload = self.recv(sock)
+            payload_list.append(payload)
+
+            type = payload[:APayload.TYPE_LEN]
+            if type == APayload.CLOSE:
+                break
+
+        output = APayload.get_data_from_payload_list(payload_list)
+
+        return output
+
+    @staticmethod
+    def send(sock, message):
+        return do_send(sock, message)
+
+    @staticmethod
+    def recv(sock):
+        return do_recv(sock, get_max_buffersize())
 
 
 def main():
