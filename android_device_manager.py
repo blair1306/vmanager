@@ -58,6 +58,9 @@ class Debug(object):
         return caller_of_caller, caller
 
 
+client = None
+
+
 class Shell(object):
     SUCCESS = 0
     FAILED = 1
@@ -69,6 +72,10 @@ class Shell(object):
         :param command: "ls -l"
         :return: return status
         """
+        global client
+        if client:
+            return client.execute_status(command)
+
         params = command.split()
         try:
             return subprocess.check_call(params)
@@ -82,6 +89,10 @@ class Shell(object):
         :param command: "ls -l"
         :return:  the output of the shell command
         """
+        global client
+        if client:
+            return client.execute_output(command)
+
         output = subprocess.check_output(command, shell=True)
         return output
 
@@ -1093,7 +1104,12 @@ class ConnectToServerManager(object):
         self._view = connect_to_server_frame
         self._multi_lingual = multi_linaugal
         self._set_texts()
+        self._set_default_values()
         self._set_commands()
+
+    def _set_default_values(self):
+        self._view.server_address.insert(0, "localhost")
+        self._view.port.insert(0, get_default_port())
 
     def _set_texts(self):
         self._view.server_address_banner.config(text=self._multi_lingual.get_text(MultiLingual.SERVER_ADDRESS))
@@ -1104,18 +1120,23 @@ class ConnectToServerManager(object):
         self._view.connect.config(command=self._start_client)
 
     def _start_client(self):
+        address = self._view.server_address.get()
+        port = self._view.port.get()
+        port = int(port)
+
         root = self._view.master
         root.destroy()
+
+        global client
+        client = Client(address, port)
+
+        print client.execute_output("ls")
 
         app = App()
         app.run()
 
 
-def client():
-    client = Client()
-    print client.execute_output("ps -e")
-
-    print "client"
+def client_main():
     root = tk.Tk()
 
     # Multiple-Language support
@@ -1127,7 +1148,7 @@ def client():
     root.mainloop()
 
 
-def server():
+def server_main():
     server = Server()
     server.serve()
 
@@ -1143,15 +1164,16 @@ def get_max_buffersize():
 
 
 class AMessage(object):
-    GRETTING = "00000000"
-    COMMAND  = "00000001"
+    GRETTING       = "00000000"
+    COMMAND_OUTPUT = "00000001"
+    COMMAND_STATUS = "00000002"
 
-    OK       = "00000010"
+    OK             = "00000010"
 
     TYPE_LEN = len(GRETTING)
     LEN_LEN = 4
     COMMAND_START = TYPE_LEN + LEN_LEN
-    TYPES = (GRETTING, COMMAND)
+    TYPES = (GRETTING, OK, COMMAND_OUTPUT, COMMAND_STATUS)
 
     @staticmethod
     def create_message(type, length=0, command=""):
@@ -1168,9 +1190,10 @@ class AMessage(object):
         return AMessage.create_message(AMessage.OK)
 
     @staticmethod
-    def create_command_message(command):
+    def create_command_message(command, output=True):
         assert command
-        return AMessage.create_message(AMessage.COMMAND, len(command), command)
+        command_type = AMessage.COMMAND_OUTPUT if output else AMessage.COMMAND_STATUS
+        return AMessage.create_message(command_type, len(command), command)
 
     @staticmethod
     def create_gretting_message():
@@ -1186,9 +1209,9 @@ class AMessage(object):
         return type, length
 
     @staticmethod
-    def get_command_from_message(message):
+    def get_command_and_type_from_message(message):
         type = message[: AMessage.TYPE_LEN]
-        assert type == AMessage.COMMAND
+        assert type in (AMessage.COMMAND_STATUS, AMessage.COMMAND_OUTPUT)
 
         l = message[AMessage.TYPE_LEN: AMessage.COMMAND_START]
         l = int(l)
@@ -1197,7 +1220,7 @@ class AMessage(object):
 
         command = message[AMessage.COMMAND_START: AMessage.COMMAND_START+l]
 
-        return command
+        return command, type
 
     @staticmethod
     def get_version_from_message(message):
@@ -1341,9 +1364,15 @@ class Server(object):
                 return
 
             command_message = self.receive(client_socket)
-            command = AMessage.get_command_from_message(command_message)
+            command, command_type = AMessage.get_command_and_type_from_message(command_message)
 
-            data = Shell.execute_output(command)
+            execute = Shell.execute_output if command_type == AMessage.COMMAND_OUTPUT else Shell.execute_status
+
+            data = execute(command)
+
+            if type(data) is int:
+                data = str(data)
+
             payload_list = APayload.create_payload(data)
             for payload in payload_list:
                 self.send(client_socket, payload)
@@ -1365,7 +1394,13 @@ class Client(object):
         self.address = Client.SERVER_ADDRESS if not address else address
         self.port = Client.SERVER_PORT if not port else port
 
+    def execute_status(self, command):
+        return self.execute(command, output=False)
+
     def execute_output(self, command):
+        return self.execute(command, output=True)
+
+    def execute(self, command, output=True):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((self.address, self.port))
 
@@ -1378,7 +1413,7 @@ class Client(object):
         if version != PROTOCOL_VERSION:
             raise
 
-        command_message = AMessage.create_command_message(command)
+        command_message = AMessage.create_command_message(command, output)
         self.send(sock, command_message)
 
         payload_list = []
@@ -1391,6 +1426,9 @@ class Client(object):
                 break
 
         output = APayload.get_data_from_payload_list(payload_list)
+
+        if not output:
+            output = int(output)
 
         return output
 
@@ -1409,6 +1447,6 @@ def main():
 
 if __name__ == "__main__":
     if "--server" in sys.argv:
-        server()
+        server_main()
     else:
-        client()
+        client_main()
