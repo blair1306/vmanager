@@ -848,6 +848,8 @@ class PackageManager(object):
         if failure_list_string:
             Message.show_error("Uninstallation Failed for %s" % failure_list_string, parent=self._view)
 
+        self._refresh_installed_package_list()
+
     def install_packages(self):
         initialdir = "/netdisk/app-files"
         device = self._device
@@ -873,6 +875,8 @@ class PackageManager(object):
             Message.show_info("%s %s!" % (success_list_string, self._multi_lingual.get_text(MultiLingual.INSTALLED)), parent=self._view)
         if failure_list_string:
             Message.show_error("%s %s" % (self._multi_lingual.get_text(MultiLingual.FAILED), failure_list_string), parent=self._view)
+
+        self._refresh_installed_package_list()
 
     def refresh_installed_package_list(self):
         self._refresh_installed_package_list()
@@ -1395,7 +1399,9 @@ class Client(object):
         self.port = Client.SERVER_PORT if not port else port
 
     def execute_status(self, command):
-        return self.execute(command, output=False)
+        status = self.execute(command, output=False)
+        status = int(status)
+        return status
 
     def execute_output(self, command):
         return self.execute(command, output=True)
