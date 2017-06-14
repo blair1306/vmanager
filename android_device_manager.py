@@ -19,6 +19,7 @@ import tkFont
 import subprocess
 import inspect
 import socket
+import ssl
 
 
 PROTOCOL_VERSION = "0.1"
@@ -1475,8 +1476,9 @@ class Client(object):
     SERVER_ADDRESS = "localhost"
 
     def __init__(self, address=None, port=None):
-        self.address = Client.SERVER_ADDRESS if not address else address
-        self.port = Client.SERVER_PORT if not port else port
+        self._address = Client.SERVER_ADDRESS if not address else address
+        self._port = Client.SERVER_PORT if not port else port
+        self._context = ssl.create_default_context()
 
     def execute_status(self, command):
         status = self.execute(command, output=False)
@@ -1487,8 +1489,9 @@ class Client(object):
         return self.execute(command, output=True)
 
     def execute(self, command, output=True):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((self.address, self.port))
+        _sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock = self._context.wrap_socket(_sock)
+        sock.connect((self._address, self._port))
 
         gretting_message = AMessage.create_gretting_message()
         self.send(sock, gretting_message)
