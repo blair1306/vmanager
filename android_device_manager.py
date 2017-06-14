@@ -1421,46 +1421,62 @@ def do_recv(sock, length):
     return data
 
 
+ssl_certfile = "server.crt"
+ssl_keyfile = "server.key"
+
+
 class Server(object):
     ADDRESS = ""
     PORT = get_default_port()
     MAX_BUFFERSIZE = get_max_buffersize()
 
     def __init__(self, port=None):
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         host = Server.ADDRESS
         port = Server.PORT if not port else port
 
-        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        self._listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
-        self.server_socket.bind((host, port))
-        self.server_socket.listen(5)
+        self._listen_socket.bind((host, port))
+        self._listen_socket.listen(5)
 
     def serve(self):
         while True:
-            (client_socket, address) = self.server_socket.accept()
-            message = self.receive(client_socket)
+            (_client_socket, address) = self._listen_socket.accept()
+            client_socket = ssl.wrap_socket(_client_socket,
+                                            server_side=True,
+                                            certfile=ssl_certfile,
+                                            keyfile=ssl_keyfile,
+                                            )
+            try:
+                self.deal_with_client(client_socket)
+            finally:
+                client_socket.shutdown(socket.SHUT_RDWR)
+                client_socket.close()
 
-            reply_gretting_message = AMessage.create_gretting_message()
-            self.send(client_socket, reply_gretting_message)
+    def deal_with_client(self, client_socket):
+        message = self.receive(client_socket)
 
-            if not AMessage.get_version_from_message(message) == PROTOCOL_VERSION:
-                return
+        reply_greetting_message = AMessage.create_gretting_message()
+        self.send(client_socket, reply_greetting_message)
 
-            command_message = self.receive(client_socket)
-            command, command_type = AMessage.get_command_and_type_from_message(command_message)
+        if not AMessage.get_version_from_message(message) == PROTOCOL_VERSION:
+            return
 
-            execute = Shell.execute_output if command_type == AMessage.COMMAND_OUTPUT else Shell.execute_status
+        command_message = self.receive(client_socket)
+        command, command_type = AMessage.get_command_and_type_from_message(command_message)
 
-            data = execute(command)
+        execute = Shell.execute_output if command_type == AMessage.COMMAND_OUTPUT else Shell.execute_status
 
-            if type(data) is int:
-                data = str(data)
+        data = execute(command)
 
-            payload_list = APayload.create_payload(data)
-            for payload in payload_list:
-                self.send(client_socket, payload)
+        if type(data) is int:
+            data = str(data)
+
+        payload_list = APayload.create_payload(data)
+        for payload in payload_list:
+            self.send(client_socket, payload)
 
     @staticmethod
     def receive(client_sock):
@@ -1476,9 +1492,8 @@ class Client(object):
     SERVER_ADDRESS = "localhost"
 
     def __init__(self, address=None, port=None):
-        self._address = Client.SERVER_ADDRESS if not address else address
+        self._server_hostname = Client.SERVER_ADDRESS if not address else address
         self._port = Client.SERVER_PORT if not port else port
-        self._context = ssl.create_default_context()
 
     def execute_status(self, command):
         status = self.execute(command, output=False)
@@ -1490,11 +1505,12 @@ class Client(object):
 
     def execute(self, command, output=True):
         _sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock = self._context.wrap_socket(_sock)
-        sock.connect((self._address, self._port))
+        sock = ssl.wrap_socket(_sock, ca_certs=ssl_certfile,
+                               cert_reqs=ssl.CERT_REQUIRED)
+        sock.connect((self._server_hostname, self._port))
 
-        gretting_message = AMessage.create_gretting_message()
-        self.send(sock, gretting_message)
+        greetting_message = AMessage.create_gretting_message()
+        self.send(sock, greetting_message)
 
         reply_message = self.recv(sock)
         version = AMessage.get_version_from_message(reply_message)
@@ -1515,6 +1531,9 @@ class Client(object):
                 break
 
         data = APayload.get_data_from_payload_list(payload_list)
+
+        sock.shutdown(socket.SHUT_RDWR)
+        sock.close()
 
         return data
 
