@@ -919,8 +919,6 @@ class PackageManager(object):
         initialdir = "/netdisk/app-files"
         device = self._device
 
-        #package_path_filename_list = FileDialog.ask_open_apkfilenames(initialdir=initialdir, parent=self._view)
-
         toplevel = Toplevel()
 
         directory_utils = DirectoryUtils()
