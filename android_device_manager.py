@@ -93,7 +93,11 @@ class Shell(object):
         if client:
             return client.execute_output(command)
 
-        output = subprocess.check_output(command, shell=True)
+        try:
+            output = subprocess.check_output(command, shell=True)
+        except subprocess.CalledProcessError:
+            output = ""
+
         return output
 
 
@@ -561,6 +565,66 @@ class FrameLeft(Frame):
         self.pack(side=tk.LEFT)
 
 
+class AskOpenFilenamesFrame(Frame):
+    def __init__(self, master):
+        Frame.__init__(self, master)
+
+        master = UI.create_left(UI.FRAME, self)
+        self.file_listbox_banner = UI.create(UI.LABEL, master)
+        self.file_listbox = UI.create(UI.LISTBOX, master, selectmode=ListBox.MULTIPLE)
+
+        master = UI.create_left(UI.FRAME, self)
+        self.confirm_button = UI.create(UI.BUTTON, master)
+
+
+class DirectoryUtils(object):
+    @staticmethod
+    def list_directory_content(path=None):
+        path = path if path else "."    # default path is the current directory.
+        return os.listdir(path)
+
+
+class AskOpenFilenamesManager(object):
+    def __init__(self, directory_utils, askopenfiles_frame, multi_lingual, initial_dir=None):
+        self._controller = directory_utils
+        self._view = askopenfiles_frame
+        self._multi_lingual = multi_lingual
+        self._initial_dir = initial_dir
+
+        self._set_texts()
+        self._list_files()
+        self._set_commands()
+
+        self.selections = tk.StringVar()       # Ordinary data will be destroyed once the window is destroyed.
+
+    def _set_texts(self):
+        self._view.file_listbox_banner.config(text=self._multi_lingual.get_text(MultiLingual.LIST_OF_FILE))
+        self._view.confirm_button.config(text=self._multi_lingual.get_text(MultiLingual.SELECT))
+
+    def _list_files(self):
+        dir = self._initial_dir if self._initial_dir else "."
+        file_list = self._controller.list_directory_content(dir)
+        self._view.file_listbox.update_options(file_list)
+
+    def _set_commands(self):
+        self._view.confirm_button.config(command=self._on_ok)
+
+    def _on_ok(self, event=None):
+        s = self._view.file_listbox.get_selections()
+        selections = "\n".join(s)
+
+        self.selections.set(selections)
+
+        self._view.master.destroy()
+
+    def show(self):
+        self._view.master.wm_deiconify()
+        self._view.file_listbox.focus_set()
+        self._view.master.wait_window()
+
+        return self.selections.get()
+
+
 class DeviceAdministrationFrame(FrameLeft):
     def __init__(self, master, *args, **kwargs):
         FrameLeft.__init__(self, master, *args, **kwargs)
@@ -854,25 +918,40 @@ class PackageManager(object):
         initialdir = "/netdisk/app-files"
         device = self._device
 
-        package_path_filename_list = FileDialog.ask_open_apkfilenames(initialdir=initialdir, parent=self._view)
+        #package_path_filename_list = FileDialog.ask_open_apkfilenames(initialdir=initialdir, parent=self._view)
 
-        if not package_path_filename_list:
+        toplevel = Toplevel()
+
+        directory_utils = DirectoryUtils()
+        ask_open_filenames_frame = AskOpenFilenamesFrame(toplevel)
+        ask_open_filenames_manager = AskOpenFilenamesManager(directory_utils, ask_open_filenames_frame, self._multi_lingual, initialdir)
+
+        package_filename_list_string = ask_open_filenames_manager.show()
+        package_filename_list_string = str(package_filename_list_string)
+        package_filename_list = package_filename_list_string.splitlines()
+
+        if not package_filename_list:
             Message.show_info(self._multi_lingual.get_text(MultiLingual.CANCELLED), parent=self._view)
             return
 
-        name_list = map(FileUtils.extract_filename, package_path_filename_list)
+        name_list = map(FileUtils.extract_filename, package_filename_list)
         name_list_string = "    ".join(name_list)
 
         if not Message.ask_ok_cancel("%s? %s" % (self._multi_lingual.get_text(MultiLingual.INSTALL_THESE_PACKAGES), name_list_string), parent=self._view):
             Message.show_info(self._multi_lingual.get_text(MultiLingual.CANCELLED), parent=self._view)
             return
 
+        package_path_filename_list = []
+
+        for filename in package_filename_list:
+            package_path_filename_list.append(initialdir+"/"+filename)
+
         status_list = self._model.install_packages(device, package_path_filename_list)
 
         success_list_string, failure_list_string = self._do(name_list, status_list)
 
         if success_list_string:
-            Message.show_info("%s %s!" % (success_list_string, self._multi_lingual.get_text(MultiLingual.INSTALLED)), parent=self._view)
+            Message.show_info("%s %s!" % (success_list_string, self._multi_lingual.get_text(MultiLingual.DONE)), parent=self._view)
         if failure_list_string:
             Message.show_error("%s %s" % (self._multi_lingual.get_text(MultiLingual.FAILED), failure_list_string), parent=self._view)
 
@@ -993,7 +1072,9 @@ class MultiLingual(object):
     SERVER_ADDRESS, \
     PORT, \
     CONNECT, \
-        = range(23)  # Increase this number everytime when adding new items to the list.
+    \
+    LIST_OF_FILE \
+        = range(24)  # Increase this number everytime when adding new items to the list.
 
     NAMES = (
         range(len(TEXTS))
@@ -1008,6 +1089,10 @@ class MultiLingual(object):
         assert name in MultiLingual.NAMES
 
         return {
+            MultiLingual.LIST_OF_FILE: {
+                MultiLingual.EN: "List of file",
+                MultiLingual.CH: "文件列表"
+            },
             MultiLingual.CONNECT: {
                 MultiLingual.EN: "Connect",
                 MultiLingual.CH: "选择"
@@ -1133,8 +1218,6 @@ class ConnectToServerManager(object):
 
         global client
         client = Client(address, port)
-
-        print client.execute_output("ls")
 
         app = App()
         app.run()
@@ -1265,9 +1348,6 @@ class APayload(object):
         where = 0
         payload_list = []
         payload_template = "%s%4d%s"    # 4 for the length of actual payload
-
-        if l == 0:
-            return payload_list
 
         while l > 0:
             if l > APayload.MAX_ACTUAL_PAYLOAD_LEN:
@@ -1431,12 +1511,9 @@ class Client(object):
             if type == APayload.CLOSE:
                 break
 
-        output = APayload.get_data_from_payload_list(payload_list)
+        data = APayload.get_data_from_payload_list(payload_list)
 
-        if not output:
-            output = int(output)
-
-        return output
+        return data
 
     @staticmethod
     def send(sock, message):
