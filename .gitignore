@@ -1,3 +1,5 @@
 .idea
 VMMANAGER.CONF
 .vscode
+*.crt
+*.key
