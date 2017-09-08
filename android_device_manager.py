@@ -145,11 +145,11 @@ class ADBException(Exception):
     pass
 
 
-class ADBDeviceNotFoundError(ADBException):
+class ADBDeviceNotFound(ADBException):
     pass
 
 
-class ADBDeviceOfflineError(ADBException):
+class ADBDeviceOffline(ADBException):
     pass
 
 
@@ -265,11 +265,11 @@ class ADB(object):
 
         device_dict = ADB.get_device_dict()
         if device not in device_dict:
-            raise ADBDeviceNotFoundError("%s not found." % device)
+            raise ADBDeviceNotFound("%s not found." % device)
 
         status = device_dict[device]
         if status == ADBDeviceStatus.OFFLINE:
-            raise ADBDeviceOfflineError("%s is offline." % device)
+            raise ADBDeviceOffline("%s is offline." % device)
 
     @staticmethod
     def _start_server():
@@ -537,7 +537,7 @@ class App(tk.Tk):
         self._adb = ADB()       # model for both device selection and package management
         self._device_administrator = DeviceAdministrator()
         # Views
-        self._frame = MainFrame(self)
+        self._frame = MainFrame(self, self._multi_lingual)
         # Controllers
         self._device_selection_manager = DeviceSelectionManager(self._adb, self._frame.device_selection_frame, self._multi_lingual)
         self._device_manager = \
@@ -627,14 +627,24 @@ class AskOpenFilenamesManager(object):
 
 
 class DeviceAdministrationFrame(FrameLeft):
-    def __init__(self, master, *args, **kwargs):
+    def __init__(self, master, lan, *args, **kwargs):
         FrameLeft.__init__(self, master, *args, **kwargs)
+
+        self.lan = lan
 
         self.title = UI.create(UI.LABEL, self)
         UI.create(UI.LABEL, self)
         self.create_template_button = UI.create(UI.BUTTON, self)
         self.run_template_button = UI.create(UI.BUTTON, self)
         self.reboot_device_button = UI.create(UI.BUTTON, self)
+
+        self._set_text()
+
+    def _set_text(self):
+        self.title.config(text=self.lan.get_text(MultiLingual.DEVICE_ADMINISTRATION))
+        self.create_template_button.config(text=self.lan.get_text(MultiLingual.CREATE_TEMPLATE))
+        self.run_template_button.config(text=self.lan.get_text(MultiLingual.RUN_TEMPLATE))
+        self.reboot_device_button.config(text=self.lan.get_text(MultiLingual.REBOOT_DEVICE))
 
 
 class FileUtils(object):
@@ -690,13 +700,6 @@ class DeviceAdministrationManager(object):
         self._multi_lingual = multi_lingual
 
         self._set_commands()
-        self._set_texts()
-
-    def _set_texts(self):
-        self._view.title.config(text=self._multi_lingual.get_text(MultiLingual.DEVICE_ADMINISTRATION))
-        self._view.create_template_button.config(text=self._multi_lingual.get_text(MultiLingual.CREATE_TEMPLATE))
-        self._view.run_template_button.config(text=self._multi_lingual.get_text(MultiLingual.RUN_TEMPLATE))
-        self._view.reboot_device_button.config(text=self._multi_lingual.get_text(MultiLingual.REBOOT_DEVICE))
 
     def _set_commands(self):
         self._view.create_template_button.config(command=self.create_template)
@@ -731,17 +734,9 @@ class DeviceSelectionManager(object):
         # Solve the lost selection problem when focus gets lost
         self._view.device_listbox.config(exportselection=False)
 
-        self._set_texts()
-
     def refresh_device_list(self):
         self._refresh_device_list()
         Message.show_info(self._multi_lingual.get_text(MultiLingual.DONE))
-
-    def _set_texts(self):
-        self._view.title.config(text=self._multi_lingual.get_text(MultiLingual.PACKAGE_MANAGEMENT))
-        self._view.banner.config(text=self._multi_lingual.get_text(MultiLingual.LIST_OF_DEVICES))
-        self._view.select_button.config(text=self._multi_lingual.get_text(MultiLingual.SELECT))
-        self._view.refresh_button.config(text=self._multi_lingual.get_text(MultiLingual.REFRESH))
 
     def _set_commands(self):
         self._view.refresh_button.config(command=self.refresh_device_list)
@@ -799,10 +794,11 @@ class DeviceSelectionManager(object):
 
 
 class DeviceSelectionFrame(FrameLeft):
-    def __init__(self, master, *args, **kwargs):
+    def __init__(self, master, lan, *args, **kwargs):
         FrameLeft.__init__(self, master, *args, **kwargs)
 
         master = UI.create(UI.FRAME, self)
+        self.lan = lan
 
         self.title = UI.create(UI.LABEL, master)
         UI.create(UI.LABEL, master)
@@ -812,6 +808,14 @@ class DeviceSelectionFrame(FrameLeft):
         master = UI.create(UI.FRAME, self)
         self.select_button = UI.create_left(UI.BUTTON, master)
         self.refresh_button = UI.create_left(UI.BUTTON, master)
+
+        self._set_text()
+
+    def _set_text(self):
+        self.title.config(text=self.lan.get_text(MultiLingual.PACKAGE_MANAGEMENT))
+        self.banner.config(text=self.lan.get_text(MultiLingual.LIST_OF_DEVICES))
+        self.select_button.config(text=self.lan.get_text(MultiLingual.SELECT))
+        self.refresh_button.config(text=self.lan.get_text(MultiLingual.REFRESH))
 
 
 class Toplevel(tk.Toplevel):
@@ -996,11 +1000,13 @@ class PackageManager(object):
 
 
 class MainFrame(Frame):
-    def __init__(self, master):
+    def __init__(self, master, lan):
         Frame.__init__(self, master)
 
-        self.device_administration_frame = DeviceAdministrationFrame(self)
-        self.device_selection_frame = DeviceSelectionFrame(self)
+        self.lan = lan
+
+        self.device_administration_frame = DeviceAdministrationFrame(self, self.lan)
+        self.device_selection_frame = DeviceSelectionFrame(self, self.lan)
 
         self.debug_button = None
 
@@ -1543,10 +1549,6 @@ class Client(object):
     def recv(sock):
         return do_recv(sock, get_max_buffersize())
 
-
-def main():
-    app = App()
-    app.run()
 
 if __name__ == "__main__":
     if "--server" in sys.argv:
