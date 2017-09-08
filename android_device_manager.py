@@ -20,6 +20,7 @@ import subprocess
 import inspect
 import socket
 import ssl
+import errno
 
 
 PROTOCOL_VERSION = "0.1"
@@ -63,6 +64,10 @@ client = None
 
 
 class Shell(object):
+    """ Both client and server use this class as a shell wrapper.
+    on server side, this is just a simple shell wrapper, whereas
+    on client side, this sets up a tcp connection and run the shell command on the server side.
+    """
     SUCCESS = 0
     FAILED = 1
 
@@ -119,6 +124,9 @@ class FileDialog(object):
 
 
 class Message(object):
+    """ Use to show a pop-up message
+    *Don't use this on the server side*
+    """
     @staticmethod
     def show_warning(message, *args, **kwargs):
         tkMessageBox.showwarning(message=message, *args, **kwargs)
@@ -145,14 +153,6 @@ class ADBException(Exception):
     pass
 
 
-class ADBDeviceNotFound(ADBException):
-    pass
-
-
-class ADBDeviceOffline(ADBException):
-    pass
-
-
 class ADBServerError(ADBException):
     pass
 
@@ -168,9 +168,9 @@ class ADB(object):
 
         :return:  {"device0": "device", "device1", "offline"}
         """
-        device_dict = {}
-
         ADB._start_server_raise_exception()
+
+        device_dict = {}
 
         """
         The output of "adb devices" would be:
@@ -200,7 +200,8 @@ class ADB(object):
         :param search: filter result with " | grep search"
         :return: List of installed packages.
         """
-        ADB._check_status_raise_exception(device)
+        if ADB._check_status(device):
+            return None
 
         t = "-3" if third_party else ""
         search = " | grep %s" % search if search else ""
@@ -219,22 +220,45 @@ class ADB(object):
         return installed_package_list
 
     @staticmethod
+    def _check_status(device):
+        """
+        check to see if device exists and device if online. display error messages.
+        :param device:
+        :return: true if device doesn't exist or is offline.
+        """
+        assert device
+
+        status = ADB._get_status(device)
+
+        if status and status != ADBDeviceStatus.OFFLINE:
+            return False
+
+        if not status:
+            Message.show_error("Coundn't find device: %s" % device)
+
+        if status == ADBDeviceStatus.OFFLINE:
+            Message.show_error("Device: %s is offline" % device)
+
+        return True
+
+    @staticmethod
     def install_packages(device, package_path_filename_list):
         """
 
         :return: Installation Status List
         """
-        ADB._check_status_raise_exception(device)
+        assert device
+        assert package_path_filename_list
 
-        if not package_path_filename_list:
-            raise ValueError("Package_path_filename_list shouldn't be empty")
+        if ADB._check_status(device):
+            return None
 
-        status_list = []
+        install_status_list = []
         for path_name in package_path_filename_list:
             status = ADB._install_package(device, path_name)
-            status_list.append(status)
+            install_status_list.append(status)
 
-        return status_list
+        return install_status_list
 
     @staticmethod
     def uninstall_packages(device, package_list):
@@ -242,34 +266,33 @@ class ADB(object):
 
         :return: list of uninstallation status
         """
-        ADB._check_status_raise_exception(device)
+        assert device
+        assert package_list
 
-        if not package_list:
-            raise ValueError("package_list shouldn't be empty, %s" % package_list)
+        if ADB._check_status(device):
+            return None
 
-        status_list = []
+        uninstall_status_list = []
         for package in package_list:
             # status_dict[package] = ADB._uninstall_package(device, package)
             status = ADB._uninstall_package(device, package)
-            status_list.append(status)
+            uninstall_status_list.append(status)
 
-        return status_list
+        return uninstall_status_list
 
     @staticmethod
-    def _check_status_raise_exception(device):
+    def _get_status(device):
         """
         Check if device exists and whether is operable.
         """
-        if device is None:
-            raise ValueError("device shouldn't be None")
+        assert device
 
         device_dict = ADB.get_device_dict()
-        if device not in device_dict:
-            raise ADBDeviceNotFound("%s not found." % device)
+        if not device_dict:
+            return None
 
         status = device_dict[device]
-        if status == ADBDeviceStatus.OFFLINE:
-            raise ADBDeviceOffline("%s is offline." % device)
+        return status
 
     @staticmethod
     def _start_server():
@@ -507,7 +530,7 @@ class ListBox(tk.Listbox):
 
 
 class App(tk.Tk):
-    def __init__(self):
+    def __init__(self, lan):
         tk.Tk.__init__(self)
 
         self.resizable(False, False)
@@ -529,19 +552,17 @@ class App(tk.Tk):
         classic = 'classic'
         self.style.theme_use(classic)
 
-        # Multiple-Language support
-        lan = MultiLingual.EN if "--english" in sys.argv else MultiLingual.CH
-        self._multi_lingual = MultiLingual(lan)
+        self._lan = lan
 
         # Models
         self._adb = ADB()       # model for both device selection and package management
         self._device_administrator = DeviceAdministrator()
         # Views
-        self._frame = MainFrame(self, self._multi_lingual)
+        self._frame = MainFrame(self, self._lan)
         # Controllers
-        self._device_selection_manager = DeviceSelectionManager(self._adb, self._frame.device_selection_frame, self._multi_lingual)
+        self._device_selection_manager = DeviceSelectionManager(self._adb, self._frame.device_selection_frame, self._lan)
         self._device_manager = \
-            DeviceAdministrationManager(self._device_administrator, self._frame.device_administration_frame, self._multi_lingual)
+            DeviceAdministrationManager(self._device_administrator, self._frame.device_administration_frame, self._lan)
 
     def run(self):
         self.mainloop()
@@ -1024,8 +1045,10 @@ class MainFrame(Frame):
 
 
 class ConnectToServerFrame(Frame):
-    def __init__(self, master):
+    def __init__(self, master, lan):
         Frame.__init__(self, master)
+
+        self._lan = lan
 
         frame = UI.create(UI.FRAME, self)
         parent = UI.create_left(UI.FRAME, frame)
@@ -1038,6 +1061,13 @@ class ConnectToServerFrame(Frame):
 
         frame = UI.create(UI.FRAME, self)
         self.connect = UI.create_left(UI.BUTTON, frame)
+
+        self._set_text()
+
+    def _set_text(self):
+        self.server_address_banner.config(text=self._lan.get_text(MultiLingual.SERVER_ADDRESS))
+        self.port_banner.config(text=self._lan.get_text(MultiLingual.PORT))
+        self.connect.config(text=self._lan.get_text(MultiLingual.CONNECT))
 
 
 class MultiLingual(object):
@@ -1194,21 +1224,15 @@ class MultiLingual(object):
 
 
 class ConnectToServerManager(object):
-    def __init__(self, connect_to_server_frame, multi_linaugal):
+    def __init__(self, connect_to_server_frame, lan):
         self._view = connect_to_server_frame
-        self._multi_lingual = multi_linaugal
-        self._set_texts()
+        self._lan= lan
         self._set_default_values()
         self._set_commands()
 
     def _set_default_values(self):
         self._view.server_address.insert(0, "localhost")
         self._view.port.insert(0, get_default_port())
-
-    def _set_texts(self):
-        self._view.server_address_banner.config(text=self._multi_lingual.get_text(MultiLingual.SERVER_ADDRESS))
-        self._view.port_banner.config(text=self._multi_lingual.get_text(MultiLingual.PORT))
-        self._view.connect.config(text=self._multi_lingual.get_text(MultiLingual.CONNECT))
 
     def _set_commands(self):
         self._view.connect.config(command=self._start_client)
@@ -1224,7 +1248,7 @@ class ConnectToServerManager(object):
         global client
         client = Client(address, port)
 
-        app = App()
+        app = App(self._lan)
         app.run()
 
 
@@ -1235,7 +1259,7 @@ def client_main():
     lan = MultiLingual.EN if "--english" in sys.argv else MultiLingual.CH
     multi_lingual = MultiLingual(lan)
 
-    connect_to_server_frame = ConnectToServerFrame(root)
+    connect_to_server_frame = ConnectToServerFrame(root, multi_lingual)
     connect_to_server_manager = ConnectToServerManager(connect_to_server_frame, multi_lingual)
     root.mainloop()
 
@@ -1288,7 +1312,7 @@ class AMessage(object):
         return AMessage.create_message(command_type, len(command), command)
 
     @staticmethod
-    def create_gretting_message():
+    def create_greeting_message():
         return AMessage.create_message(AMessage.GRETTING, len(PROTOCOL_VERSION), PROTOCOL_VERSION)
 
     @staticmethod
@@ -1462,7 +1486,7 @@ class Server(object):
     def deal_with_client(self, client_socket):
         message = self.receive(client_socket)
 
-        reply_greetting_message = AMessage.create_gretting_message()
+        reply_greetting_message = AMessage.create_greeting_message()
         self.send(client_socket, reply_greetting_message)
 
         if not AMessage.get_version_from_message(message) == PROTOCOL_VERSION:
@@ -1511,10 +1535,16 @@ class Client(object):
         _sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock = ssl.wrap_socket(_sock, ca_certs=ssl_certfile,
                                cert_reqs=ssl.CERT_REQUIRED)
-        sock.connect((self._server_hostname, self._port))
+        try:
+            sock.connect((self._server_hostname, self._port))
+        except socket.error as e:
+            if e.errno == errno.ECONNREFUSED:
+                Message.show_error("Connection to the server refused.")
 
-        greetting_message = AMessage.create_gretting_message()
-        self.send(sock, greetting_message)
+            exit(1)
+
+        greeting_message = AMessage.create_greeting_message()
+        self.send(sock, greeting_message)
 
         reply_message = self.recv(sock)
         version = AMessage.get_version_from_message(reply_message)
