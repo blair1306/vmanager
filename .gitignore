@@ -3,3 +3,4 @@ VMMANAGER.CONF
 .vscode
 *.crt
 *.key
+*.swp
