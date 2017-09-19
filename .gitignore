@@ -4,3 +4,5 @@ VMMANAGER.CONF
 *.crt
 *.key
 *.swp
+.vim-bookmarks
+*.pyc

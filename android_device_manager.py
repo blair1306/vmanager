@@ -23,6 +23,12 @@ import ssl
 import errno
 
 
+try:
+    import pudb as dbg
+except ImportError:
+    import pdb as dbg
+
+
 PROTOCOL_VERSION = "0.1"
 
 
@@ -154,6 +160,14 @@ class ADBException(Exception):
 
 
 class ADBServerError(ADBException):
+    pass
+
+
+class ServerException(Exception):
+    pass
+
+
+class ConnectionRefused(ServerException):
     pass
 
 
@@ -783,6 +797,16 @@ class DeviceSelectionManager(object):
 
         PackageManager(self._adb, frame, device, self._multi_lingual)
 
+    def _check_connection(f):
+        def wrapper(self, *args, **kw):
+            try:
+                return f(self, *args, **kw)
+            except ServerException as e:
+                Message.show_error("%s" % e, parent=self._view)
+                exit(1)
+        return wrapper
+
+    @_check_connection
     def _refresh_device_list(self):
         """
         We don't want the device refreshed message when this app starts up.
@@ -1532,16 +1556,18 @@ class Client(object):
         return self.execute(command, output=True)
 
     def execute(self, command, output=True):
+        if Debug.DEBUG:
+            dbg.set_trace()
+
         _sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # set timeout to 5 secs.
+        _sock.settimeout(5)
         sock = ssl.wrap_socket(_sock, ca_certs=ssl_certfile,
                                cert_reqs=ssl.CERT_REQUIRED)
         try:
             sock.connect((self._server_hostname, self._port))
         except socket.error as e:
-            if e.errno == errno.ECONNREFUSED:
-                Message.show_error("Connection to the server refused.")
-
-            exit(1)
+            raise ServerException("Couldn't connect to server: %s" % e)
 
         greeting_message = AMessage.create_greeting_message()
         self.send(sock, greeting_message)
