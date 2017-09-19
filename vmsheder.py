@@ -8,8 +8,24 @@ from vmsheder_packet import check_header
 from vmsheder_packet import Header
 
 
-HOST = "localhost"
-PORT = 5895
+host = "localhost"
+port = 5895
+
+
+def get_host_n_port():
+    """Get the current host and port in use."""
+    return host, port
+
+
+def set_host_n_port(_host, _port):
+    assert _host and type(host) is str
+    assert type(host) is int and _port > 0
+
+    global host
+    global port
+
+    host = _host
+    port = _port
 
 
 class VMShederException(Exception):
@@ -34,7 +50,7 @@ def _connect():
     """Connect to the vmsheder host and return the socket"""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(5)     # 5 secs
-    address = (HOST, PORT)
+    address = (host, port)
 
     sock.connect(address)
 
@@ -55,7 +71,11 @@ def get_status(vm_id):
 
     check_header(packet, Header.TYPE_STATUS)
 
-    return packet.data
+    # reason=OK indicates that the device is alive.
+
+    status = VMStatus.ALIVE if "reason=OK" in packet.data.pack() else VMStatus.DEAD
+
+    return status
 
 
 def devices():
@@ -82,10 +102,11 @@ def request_restart(vm_id):
     sock = _connect()
 
     send_packet(sock, packet)
-    packet = read_packet(sock)
+    # TODO: for now this doesn't work.
+    #packet = read_packet(sock)
 
     sock.close()
 
-    check_header(packet, Header.TYPE_RESTART)
+    #check_header(packet, Header.TYPE_RESTART)
 
-    return packet.data
+    #return packet.data

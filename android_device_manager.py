@@ -29,6 +29,9 @@ except ImportError:
     import pdb as dbg
 
 
+import vmsheder
+
+
 PROTOCOL_VERSION = "0.1"
 
 
@@ -671,7 +674,7 @@ class DeviceAdministrationFrame(FrameLeft):
         UI.create(UI.LABEL, self)
         self.create_template_button = UI.create(UI.BUTTON, self)
         self.run_template_button = UI.create(UI.BUTTON, self)
-        self.reboot_device_button = UI.create(UI.BUTTON, self)
+        # self.reboot_device_button = UI.create(UI.BUTTON, self)
 
         self._set_text()
 
@@ -679,7 +682,7 @@ class DeviceAdministrationFrame(FrameLeft):
         self.title.config(text=self.lan.get_text(MultiLingual.DEVICE_ADMINISTRATION))
         self.create_template_button.config(text=self.lan.get_text(MultiLingual.CREATE_TEMPLATE))
         self.run_template_button.config(text=self.lan.get_text(MultiLingual.RUN_TEMPLATE))
-        self.reboot_device_button.config(text=self.lan.get_text(MultiLingual.REBOOT_DEVICE))
+        # self.reboot_device_button.config(text=self.lan.get_text(MultiLingual.REBOOT_DEVICE))
 
 
 class FileUtils(object):
@@ -739,7 +742,7 @@ class DeviceAdministrationManager(object):
     def _set_commands(self):
         self._view.create_template_button.config(command=self.create_template)
         self._view.run_template_button.config(command=self.run_template)
-        self._view.reboot_device_button.config(command=self.reboot_device)
+        # self._view.reboot_device_button.config(command=self.reboot_device)
 
     def create_template(self):
         self._model.create_template()
@@ -776,6 +779,20 @@ class DeviceSelectionManager(object):
     def _set_commands(self):
         self._view.refresh_button.config(command=self.refresh_device_list)
         self._view.select_button.config(command=self.create_package_management_frame)
+        self._view.reboot_button.config(command=self.reboot_device)
+
+    def reboot_device(self, event=None):
+        """Reboot the device under mouse selection."""
+        device = self._get_selected_device()
+        if not device:
+            Message.show_error(self._multi_lingual.get_text(MultiLingual.PLEASE_SELECT_A_DEVICE))
+            return None
+
+        vm_id = device[-4:]
+
+        vmsheder.request_restart(vm_id)
+        # Message.show_info(self._multi_lingual.get_text(MultiLingual.DONE))
+        Message.show_info("Request for Rebooting Sent!")
 
     def create_package_management_frame(self, event=None):
         """
@@ -817,7 +834,10 @@ class DeviceSelectionManager(object):
         options = []
 
         for device, status in device_dict.iteritems():
-            options.append("{}    {}".format(device, status))
+            vm_id = device[-4:]
+            real_status = vmsheder.get_status(vm_id)
+            real_status = "alive" if real_status == vmsheder.VMStatus.ALIVE else "dead"
+            options.append("{}    {}    {}".format(device, status, real_status))
 
         Debug.debug(("options: ", options))
 
@@ -831,7 +851,7 @@ class DeviceSelectionManager(object):
         if not selection:
             return None
 
-        device, _ = selection.split()
+        device, _, _ = selection.split()
 
         Debug.debug(("device: ", device))
 
@@ -854,6 +874,8 @@ class DeviceSelectionFrame(FrameLeft):
         self.select_button = UI.create_left(UI.BUTTON, master)
         self.refresh_button = UI.create_left(UI.BUTTON, master)
 
+        self.reboot_button = UI.create_left(UI.BUTTON, master)
+
         self._set_text()
 
     def _set_text(self):
@@ -861,6 +883,7 @@ class DeviceSelectionFrame(FrameLeft):
         self.banner.config(text=self.lan.get_text(MultiLingual.LIST_OF_DEVICES))
         self.select_button.config(text=self.lan.get_text(MultiLingual.SELECT))
         self.refresh_button.config(text=self.lan.get_text(MultiLingual.REFRESH))
+        self.reboot_button.config(text=self.lan.get_text(MultiLingual.REBOOT_DEVICE))
 
 
 class Toplevel(tk.Toplevel):
@@ -1607,7 +1630,7 @@ class Client(object):
 
 
 if __name__ == "__main__":
-    if "--server" in sys.argv:
+    if "server" in sys.argv:
         server_main()
     else:
         client_main()
