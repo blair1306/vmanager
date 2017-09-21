@@ -3,7 +3,7 @@
 import socket
 
 from vmsheder_packet import create_status, create_devices, create_restart
-from vmsheder_packet import send_packet, read_packet
+from vmsheder_packet import send_packet, read_packets, get_data
 from vmsheder_packet import check_header
 from vmsheder_packet import Header
 
@@ -18,8 +18,8 @@ def get_host_n_port():
 
 
 def set_host_n_port(_host, _port):
-    assert _host and type(host) is str
-    assert type(host) is int and _port > 0
+    assert _host and type(_host) is str
+    assert type(_host) is int and _port > 0
 
     global host
     global port
@@ -43,7 +43,8 @@ class VMIsAlive(VMShederException):
 
 class VMStatus(object):
     ALIVE = 0
-    DEAD  = 1
+    FBV_IS_DEAD = 1
+    DEAD  = 2
 
 
 def _connect():
@@ -66,14 +67,21 @@ def get_status(vm_id):
     sock = _connect()
     send_packet(sock, packet)
 
-    packet = read_packet(sock)
+    packets = read_packets(sock)
     sock.close()
 
-    check_header(packet, Header.TYPE_STATUS)
+    check_header(packets, Header.TYPE_STATUS)
 
     # reason=OK indicates that the device is alive.
 
-    status = VMStatus.ALIVE if "reason=OK" in packet.data.pack() else VMStatus.DEAD
+    data = get_data(packets)
+    if "reason=OK" in data:
+        if "fbv_alived=true" in data:
+            status = VMStatus.ALIVE
+        else:
+            status = VMStatus.FBV_IS_DEAD
+    else:
+        status = VMStatus.DEAD
 
     return status
 
@@ -84,13 +92,14 @@ def devices():
     sock = _connect()
 
     send_packet(sock, packet)
-    packet = read_packet(sock)
+    packets = read_packets(sock)
 
     sock.close()
 
-    check_header(packet, Header.TYPE_DEVICES)
+    check_header(packets, Header.TYPE_DEVICES)
+    data = get_data(packets)
 
-    return packet.data
+    return data
 
 
 def request_restart(vm_id):

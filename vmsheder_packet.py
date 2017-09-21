@@ -76,6 +76,28 @@ def send_packet(sock, packet):
     return write_sock_exactly(sock, packet.pack(), len(packet))
 
 
+def get_data(packets):
+    """Reads and returns the data from a list of packets."""
+    data = ""
+    for packet in packets:
+        data += packet.data.pack()
+    return data
+
+
+def read_packets(sock):
+    """Reads packets until a packet indicating that all packets are sent by peer(by TYPE_DONE).
+    The last packet that indicates a complete sent is discarded.
+    Return a list of packets received.
+    """
+    packets = []
+    while True:
+        packet = read_packet(sock)
+        if packet.header.type is Header.TYPE_DONE:
+            break
+        packets.append(packet)
+    return packets
+
+
 def read_packet(sock):
     """Reads a packet from socket. This will read the header first to determine the length of the data follows the
     header, then reads the data too and return them both."""
@@ -103,10 +125,11 @@ def _read_data(sock, n_bytes):
     return data
 
 
-def check_header(packet, header_type):
-    """Check if the header in packet is of type header_type, Raise if they dont' match."""
-    if packet.header.type != header_type:
-        raise WrongHeaderType
+def check_header(packets, header_type):
+    """Check if the header in a list of packets is of type header_type, Raise if they dont' match."""
+    for packet in packets:
+        if packet.header.type != header_type:
+            raise WrongHeaderType
 
 
 class Packet(object):
@@ -134,6 +157,8 @@ class Header(object):
     SIZE = calcsize(FORMAT)
 
     TYPE_NONE    = 0
+    TYPE_DONE    = 1
+    TYPE_SYS_CMD = 2
     TYPE_STATUS  = 3
     TYPE_RESTART = 4
     TYPE_DEVICES = 5
