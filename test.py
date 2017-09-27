@@ -1,28 +1,61 @@
+from __future__ import absolute_import
+
+
 import sys
-from vmsheder import get_status, devices, request_restart
+from vmsheder import *
+from tnt import is_bytes_str
 
-from pudb import set_trace
+try:
+    from pudb import set_trace as _set_trace
+except ImportError:
+    from pdb import set_trace as _set_trace
+
+cool_apk = b"/home/jon/Downloads/com.coolapk.market-7.9.7-1708181.apk"
+cool_package = b"com.coolapk.market"
 
 
-def test(func, arg=None):
-    print ""
-    print func.__name__
-    if arg:
-        print func(arg)
+def set_trace():
+    if "debug" in sys.argv:
+        _set_trace()
     else:
-        print func()
-    print ""
+        pass
+
+
+def test(func, arg=[]):
+    print("")
+    print(func.__name__)
+    if arg:
+        if is_bytes_str(arg):
+            print(func(arg))
+        elif type(arg) is list:
+            print(func(*arg))
+    else:
+        print(func())
+    print("")
 
 
 def main():
-    test(get_status, "5554")
+    set_trace()
+    test(get_status, [b"5554"])
+
+    test(get_status_all)
 
     test(devices)
 
-    test(request_restart, "5554")
+    test(request_restart, [b"5554"])
+
+    test(install, [b"5554", cool_apk])
+
+    test(install_all, cool_apk)
+
+    test(get_status_all)
+
+    test(uninstall, [b"5554", cool_package])
+
+    test(uninstall_all, cool_package)
+
+    test(cmd, [b"5554", b"ls"])
 
 
 if __name__ == "__main__":
-    if "debug" in sys.argv:
-        set_trace()
-    main()
+   main()
