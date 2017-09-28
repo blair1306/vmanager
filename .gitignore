@@ -5,4 +5,6 @@ VMMANAGER.CONF
 *.key
 *.swp
 .vim-bookmarks
-*.pyc
+
+*.py[cod]
+__pycache__/

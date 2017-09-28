@@ -4,11 +4,11 @@ from __future__ import absolute_import
 
 import socket
 
-from vmsheder_packet import create_status, create_status_all, create_devices, create_restart, create_install, create_install_all
-from vmsheder_packet import create_uninstall, create_uninstall_all, create_cmd
-from vmsheder_packet import send_packet, read_packets, get_data
-from vmsheder_packet import check_header
-from vmsheder_packet import Header
+from .packet import create_status, create_status_all, create_devices, create_restart, create_install, create_install_all
+from .packet import create_uninstall, create_uninstall_all, create_cmd
+from .packet import send_packet, read_packets, get_data
+from .packet import check_header
+from .packet import Header
 
 
 host = "192.168.31.188"
@@ -21,9 +21,7 @@ def get_host_n_port():
 
 
 def set_host_n_port(_host, _port):
-    assert _host and type(_host) is unicode
-    assert type(_host) is int and _port > 0
-
+    # TODO: assertions
     global host
     global port
 

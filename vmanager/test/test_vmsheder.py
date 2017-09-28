@@ -1,9 +1,12 @@
 from __future__ import absolute_import
 
-
 import sys
-from vmsheder import *
-from tnt import is_bytes_str
+import os
+# so we can use without installing the package.
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+
+from vmanager.vmsheder import *
+from vmanager.tnt import is_bytes_str
 
 try:
     from pudb import set_trace as _set_trace
@@ -15,14 +18,14 @@ cool_package = b"com.coolapk.market"
 
 
 def set_trace():
-    if "debug" in sys.argv:
+    if b"debug" in sys.argv:
         _set_trace()
     else:
         pass
 
 
 def test(func, arg=[]):
-    print("")
+    print(b"")
     print(func.__name__)
     if arg:
         if is_bytes_str(arg):
@@ -31,7 +34,7 @@ def test(func, arg=[]):
             print(func(*arg))
     else:
         print(func())
-    print("")
+    print(b"")
 
 
 def main():

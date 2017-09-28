@@ -2,12 +2,12 @@
 # the vmsheder server.
 from __future__ import absolute_import
 
-from tnt import is_bytes_str
+from ..tnt import pythree, is_bytes_str
 
 from struct import pack, unpack, calcsize
 from socket import htons, ntohs
 
-from sio import read_sock_exactly, write_sock_exactly
+from ..io import read_sock_exactly, write_sock_exactly
 
 
 # TODO: figure out if this is the right way.
