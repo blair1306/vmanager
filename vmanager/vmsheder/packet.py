@@ -2,7 +2,7 @@
 # the vmsheder server.
 from __future__ import absolute_import
 
-from ..tnt import pythree, is_bytes_str
+from ..compat import bytes
 
 from struct import pack, unpack, calcsize
 from socket import htons, ntohs
@@ -47,7 +47,7 @@ def create_packet(type, data):
 
 
 def create_status(vm_id):
-    assert is_bytes_str(vm_id)
+    assert isinstance(vm_id, bytes)
 
     n_bytes = len(vm_id)
     header = Header(Header.TYPE_STATUS, n_bytes)
@@ -72,7 +72,7 @@ def create_devices():
 
 
 def create_restart(vm_id):
-    assert is_bytes_str(vm_id)
+    assert isinstance(vm_id, bytes)
 
     n_bytes = len(vm_id)
     header = Header(Header.TYPE_RESTART, n_bytes)
@@ -82,7 +82,7 @@ def create_restart(vm_id):
 
 
 def create_install(vm_id, apk):
-    assert is_bytes_str(vm_id) and is_bytes_str(apk)
+    assert isinstance(vm_id, bytes) and isinstance(apk, bytes)
 
     s = vm_id + b" " + apk
     
@@ -94,7 +94,7 @@ def create_install(vm_id, apk):
 
 
 def create_install_all(apk):
-    assert is_bytes_str(apk)
+    assert isinstance(apk, bytes)
 
     n_bytes = len(apk)
     header = Header(Header.TYPE_INSTALL_ALL, n_bytes)
@@ -104,7 +104,7 @@ def create_install_all(apk):
 
 
 def create_uninstall(vm_id, package):
-    assert is_bytes_str(vm_id) and is_bytes_str(package)
+    assert isinstance(vm_id, bytes) and isinstance(package, bytes)
 
     s = vm_id + b" " + package
     n_bytes = len(s)
@@ -115,7 +115,7 @@ def create_uninstall(vm_id, package):
 
 
 def create_uninstall_all(package):
-    assert is_bytes_str(package)
+    assert isinstance(package, bytes)
 
     n_bytes = len(package)
     header = Header(Header.TYPE_UNINSTALL_ALL, n_bytes)
@@ -125,7 +125,7 @@ def create_uninstall_all(package):
 
 
 def create_cmd(vm_id, cmd):
-    assert is_bytes_str(vm_id) and is_bytes_str(cmd)
+    assert isinstance(vm_id, bytes) and isinstance(cmd, bytes)
 
     data = vm_id + b" " + cmd
 

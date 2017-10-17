@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from vmanager.vmsheder import *
-from vmanager.tnt import is_bytes_str
+from vmanager.compat import bytes
 
 try:
     from pudb import set_trace as _set_trace
@@ -28,7 +28,7 @@ def test(func, arg=[]):
     print(b"")
     print(func.__name__)
     if arg:
-        if is_bytes_str(arg):
+        if isinstance(arg, str):
             print(func(arg))
         elif type(arg) is list:
             print(func(*arg))
