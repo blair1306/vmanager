@@ -1,5 +1,8 @@
-def get_text(text):
-    return DICT.get(text).get(lan)
+def get_text(text, _lan=None):
+    if _lan is None:
+        return DICT.get(text).get(lan)
+    else:
+        return DICT.get(text).get(_lan)
 
 
 def set_lan(_lan):
@@ -7,6 +10,13 @@ def set_lan(_lan):
 
     assert _lan in LANS
     lan = _lan
+
+
+def get_lan():
+    """
+    Get the current language in use.
+    """
+    return lan
 
 
 # Default language is english.
@@ -65,9 +75,10 @@ DICT = {
         CH: "连接"
     },
     SERVER_ADDRESS: {
-    EN: "Server Address",
+        EN: "Server Address",
         CH: "服务器地址"
-},        PORT: {
+    },
+    PORT: {
         EN: "Port",
         CH: "端口号"
     },
