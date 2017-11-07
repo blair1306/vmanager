@@ -1,5 +1,24 @@
-
 from .compat import tk, ttk
+
+
+class Frame(ttk.Frame):
+    def __init__(self, master, *args, **kwargs):
+        borderwidth = 3
+
+        if "borderwidth" in kwargs:
+            borderwidth = kwargs["borderwidth"]
+            del kwargs["borderwidth"]
+
+        # ttk.Frame.__init__(self, master, borderwidth=borderwidth, padx=padx, pady=pady, *args, **kwargs)
+        ttk.Frame.__init__(self, master, borderwidth=borderwidth, *args, **kwargs)
+
+        self.pack()
+
+
+class FrameLeft(Frame):
+    def __init__(self, master, *args, **kwargs):
+        Frame.__init__(self, master, *args, **kwargs)
+        self.pack(side=tk.LEFT)
 
 
 class ListBox(tk.Listbox):
@@ -14,7 +33,7 @@ class ListBox(tk.Listbox):
     END = tk.END
 
     def __init__(self, master, selectmode, *args, **kwargs):
-        super(ListBox, self).__init__(self, master, selectmode=selectmode, *args, **kwargs)
+        tk.Listbox.__init__(self, master, selectmode=selectmode, *args, **kwargs)
         self._selectmode = selectmode
 
     def update_options(self, options):
@@ -61,3 +80,7 @@ class ListBox(tk.Listbox):
     def _delete_all_options(self):
         self.delete(0, ListBox.END)
 
+
+class Toplevel(tk.Toplevel):
+    def __init__(self, master=None, *args, **kwargs):
+        tk.Toplevel.__init__(self, master, *args, **kwargs)
