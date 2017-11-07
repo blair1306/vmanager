@@ -1,6 +1,9 @@
-
-
 from .compat import tk, ttk
+
+from .widgets import Frame, ListBox, Toplevel
+from .app import App
+
+
 
 LEFT = tk.LEFT
 BOTH = tk.BOTH
@@ -21,6 +24,9 @@ TOPLEVEL = "toplevel"
 SCROLLBAR = "scrollbar"
 
 
+# Top level widgets' master is set to be root by default.
+# for all create_* functions.
+
 def create_frame(master, *args, **kwargs):
     return TkinterAdapter.create(FRAME, master, *args, **kwargs)
 
@@ -38,6 +44,7 @@ def create_message(master, *args, **kwargs):
 
 
 def create_listbox(master, *args, **kwargs):
+    """A listbox with only one item selectable at a time."""
     return TkinterAdapter.create(LISTBOX, master, *args, **kwargs)
 
 
@@ -45,7 +52,7 @@ def create_entry(master, *args, **kwargs):
     return TkinterAdapter.create(ENTRY, master, *args, **kwargs)
 
 
-def create_toplevel(master, *args, **kwargs):
+def create_toplevel(master=None, *args, **kwargs):
     return TkinterAdapter.create(TOPLEVEL, master, *args, **kwargs)
 
 
@@ -66,14 +73,14 @@ class TkinterAdapter(object):
 
         element = factory(master, *args, **kwargs)
 
-        if name not in (TkinterAdapter.TOPLEVEL, ):     # toplevel doesn't have pack().
+        if name not in (TOPLEVEL, ):     # toplevel doesn't have pack().
             element.pack(side=side)
         
-        if name is UI.SCROLLBAR:
-            element.pack(fill=UI.Y)
+        if name is SCROLLBAR:
+            element.pack(fill=Y)
 
-        if name is UI.BUTTON:
-            element.pack(fill=UI.BOTH)
+        if name is BUTTON:
+            element.pack(fill=BOTH)
 
         return element
 
@@ -122,7 +129,7 @@ class TkinterAdapter(object):
     @staticmethod
     def _label(master, *args, **kwargs):
         text = ''
-        anchor = UI.W
+        anchor = W
 
         if 'text' in kwargs:
             text = kwargs['text']
@@ -136,14 +143,14 @@ class TkinterAdapter(object):
         return label
 
     @staticmethod
-    def _messge(master, *args, **kwargs):
+    def _message(master, *args, **kwargs):
         message = tk.Message(master, *args, **kwargs)
 
         return message
 
     @staticmethod
     def _listbox(master, *args, **kwargs):
-        selectmode = LISTBOX.SINGLE
+        selectmode = ListBox.SINGLE
         width = 25
         if 'selectmode' in kwargs:
             selectmode = kwargs['selectmode']
@@ -163,7 +170,7 @@ class TkinterAdapter(object):
         return entry
 
     @staticmethod
-    def _toplevel(master, *args, **kwargs):
+    def _toplevel(master=None, *args, **kwargs):
         title = ""
         if 'title' in kwargs:
             title = kwargs['title']
