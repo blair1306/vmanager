@@ -7,21 +7,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from vmanager.vmsheder import *
 from vmanager.compat import bytes
-
-try:
-    from pudb import set_trace as _set_trace
-except ImportError:
-    from pdb import set_trace as _set_trace
+from vmanager.test.set_trace import set_trace
 
 cool_apk = b"/home/jon/Downloads/com.coolapk.market-7.9.7-1708181.apk"
 cool_package = b"com.coolapk.market"
-
-
-def set_trace():
-    if b"debug" in sys.argv:
-        _set_trace()
-    else:
-        pass
 
 
 def test(func, arg=[]):
