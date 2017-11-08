@@ -1,3 +1,14 @@
+# coding: utf-8
+
+
+EN = "en"
+CH = "ch"
+LANS = [EN, CH]
+
+# Default language is english.
+lan = EN
+
+
 def get_text(text, _lan=None):
     if _lan is None:
         return DICT.get(text).get(lan)
@@ -12,20 +23,19 @@ def set_lan(_lan):
     lan = _lan
 
 
+def set_ch():
+    set_lan(CH)
+
+
+def set(lan=EN):
+    set_lan(lan)
+
+
 def get_lan():
     """
     Get the current language in use.
     """
     return lan
-
-
-# Default language is english.
-lan = "en"
-
-
-EN = "en"
-CH = "ch"
-LANS = [EN, CH]
 
 
 TEXTS = \
@@ -60,8 +70,13 @@ TEXTS = \
     PORT, \
     CONNECT, \
     \
-    LIST_OF_FILE \
-        = range(24)  # Increase this number everytime when adding new items to the list.
+    LIST_OF_FILE, \
+    \
+    DEVICE_ID, \
+    RESOLUTION, \
+    RAM_SIZE_IN_GB, \
+    STATUS, \
+        = range(28)  # Increase this number everytime when adding new items to the list.
         # TODO: there must be a better way than this.
 
 
@@ -161,5 +176,22 @@ DICT = {
     DEVICE_SELECTED: {
         EN: "Device Selected",
         CH: "已选择设备"
-    }
+    },
+
+    DEVICE_ID: {
+        EN: "Device ID",
+        CH: "设备id"
+    },
+    RESOLUTION: {
+        EN: "Resolution",
+        CH: "分辨率"
+    },
+    RAM_SIZE_IN_GB: {
+        EN: "RAM size (GB)",
+        CH: "内存大小 (GB)"
+    },
+    STATUS: {
+        EN: "Status",
+        CH: "状态"
+    },
 }

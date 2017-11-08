@@ -65,7 +65,12 @@ class TkinterAdapter(object):
     Factory class used to give tkinter widgets default values .
     """
     @staticmethod
-    def create(name, master, side=None, *args, **kwargs):
+    def create(name, master, left=False, *args, **kwargs):
+        """
+        with left set to True, the widget will be created side by side from the last widget created.
+        """
+        side = LEFT if left else None
+
         factory = TkinterAdapter.get_factory(name)
 
         if factory is None:
