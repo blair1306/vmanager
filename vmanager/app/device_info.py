@@ -9,7 +9,8 @@ from ..debug import set_trace
 from ..ui import bind_double_click, bind_click
 from ..ui import show_info, show_warning, show_error
 
-from ..vmsheder import devices, get_status
+from ..vmsheder import devices, get_status, VMStatus
+from ..vmsheder import get_resolution, get_RAM
 
 import logging
 from logging.config import fileConfig
@@ -24,6 +25,10 @@ formatter = logging.Formatter(
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
+
+
+# globbal toggle for testing-related stuff.
+testing = True
 
 
 def build_device_info_frame(root):
@@ -65,23 +70,37 @@ def device_info_view(master):
     return view
 
 
-# There seems to be some issue with using unicode string in listbox options. so default to english text.
-backup = get_lan()
-set_en()
-
-
 class DeviceInfo(object):
     """
     info of a virtual device such as it's screen resolution, RAM size etc.
     """
-    def __init__(self, _id, res, RAM_GB, status):
+    def __init__(self, _id):
+        """
+        @param id: the id of vm.
+        """
         self._id = _id
-        self._res = res
-        self._RAM_GB = RAM_GB
-        self._status = status
+        self._res = "0x0"
+        self._RAM_GB = 0
+        self._status = VMStatus()
+
+        self.init()
+
+    def init(self):
+        """
+        Get the real info about this device's status through vmsheder.
+        """
+        if testing:
+            # For testing when vmsheder server isn't available.
+            get_status = lambda vm_id: VMStatus()
+            get_resolution = lambda vm_id: "0x0"
+            get_RAM = lambda vm_id: 0
+
+        self._res = get_resolution(self._id)
+        self._RAM_GB = get_RAM(self._id)
+        self._status = get_status(self._id)
 
     def __repr__(self):
-        return '[%s: %s] (%s: %s) (%s: %s) (%s: %s)' % (
+        return '[%s: %s] (%s: %s) (%s: %sGB) (%s: %s)' % (
                 get_text(DEVICE_ID), self._id,
                 get_text(RESOLUTION), self._res,
                 get_text(RAM_SIZE_IN_GB), self._RAM_GB,
@@ -104,27 +123,35 @@ class DeviceInfo(object):
         return self._RAM_GB
 
 
-set_lan(backup)
-
-
 class DeviceListBox(object):
     """
     The actual model of this gui.
+    Which has a reference to an actual gui listbox that is used to display the list of vms.
     """
-    def __init__(self, listbox, device_list=None):
+    def __init__(self, listbox):
+        """
+        @param listbox is the gui listbox used to display data.
+        """
         # The listbox data model that is used to show the gui interface.
         self._listbox = listbox
-        # The actual list of DeviceInfo.
-        self._device_list = device_list
 
-    def update_device_list(self, _device_list):
+        logger.debug(
+            "self._listbox is listbox: %s" % (id(listbox) == id(self._listbox))
+        )
+        
+        # The actual list of DeviceInfo.
+        self._device_list = None
+
+    def update_device_list(self):
         # update the connected devices list.
-        self._device_list = _device_list
+        self._device_list = DeviceListBox._get_device_info_list()
 
         # Update the listbox options.
         options = [repr(device_info) for device_info in self._device_list]
-        set_trace()
         self._listbox.update_options(options)
+
+        # Select the default one (the first one if there is one)
+        self._listbox.select_default()
 
     def get_id(self):
         """
@@ -137,15 +164,33 @@ class DeviceListBox(object):
         if index is None:
             id = None
         else:
-            id = self._list[index].id
+            id = self._device_list[index].id
 
         return id
 
     def set_id(self, id):
         # Invalid to set id.
-        raise NotImplemented
+        raise NotImplementedError()
 
     id = property(get_id, set_id)
+
+    @staticmethod
+    def _get_device_info_list():
+        """
+        Get a list of DeviceInfo 
+        """
+        logger.debug("")
+        
+        device_info_list = []
+
+        if testing:
+            devices = lambda: ['5554', '5556']
+
+        for device_id in devices():
+            device_info = DeviceInfo(device_id)
+            device_info_list.append(device_info)
+        
+        return device_info_list
 
 
 class Controller(object):
@@ -178,54 +223,25 @@ class Controller(object):
 
     def refresh_device_list(self, popup=True):
         # Show a pop up message indicating that refresh is done.
-        new_list = Controller._get_device_info_list()
-        self._model.update_device_list(new_list)
+        self._model.update_device_list()
 
         if popup:
             show_info(get_text(DONE))
 
     def reboot_device(self):
-        pass
+        show_info(get_text(DONE))
 
-    def select_device(self):
+    def select_device(self, event=None):
         """
         Select a device and create a new window for package management.
+        @param event is a callback convention.
         """
-        pass
+        logger.debug("event=%s" % repr(event))
+
+        show_info(get_text(DONE))
 
     def _selected_id(self):
         """
         Get the id of virtual device currently under selection.
         """
-        return selection._model.id
-
-    @staticmethod
-    def _get_device_info_list():
-        """
-        get the list of virtual devices detected by vmsheder on this machine.
-        """
-        logger.debug("")
-
-        device_info_list = []
-
-        for device in devices():
-            info = DeviceInfo(device, "600x800", "1", get_status(device))
-            device_info_list.append(info)
-
-        return device_info_list
-
-    @staticmethod
-    def _bogus_get_device_info_list():
-        """
-        a bogus function only intended for testing.
-        """
-        logger.debug("")
-
-        return [
-            "5554, 600x800, 2gb alive",
-            "5556, 600x800, 2gb dead",
-            "5558, 600x800, 2gb alive",
-        ]
-
-    if True:
-        _get_device_info_list = _bogus_get_device_info_list
+        return self._model.id

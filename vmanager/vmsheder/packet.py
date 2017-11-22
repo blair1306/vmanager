@@ -220,7 +220,7 @@ class Header(object):
     """
     # H is a format specifier which is unsigned short (2 bytes long)
     FORMAT = "HH"
-    # a header is always itself of a fixed size
+    # a header is always itself of a fixed size which is 4 bytes.
     SIZE = calcsize(FORMAT)
 
     TYPE_NONE    = 0
@@ -291,5 +291,5 @@ class Data(object):
         return "data: content (%s)," % self.data
 
     def pack(self):
-        # Do nothing just return the data to be sent.
+        # Do nothing than just returning the data to be sent.
         return pack(self._format, self.data)

@@ -49,7 +49,10 @@ class VMStatus(object):
     FBV_IS_DEAD = 1
     DEAD = 2
 
-    def __init__(self, _status):
+    def __init__(self, _status=None):
+        if not _status:
+            _status = VMStatus.DEAD
+
         assert VMStatus.ALIVE <= _status <= VMStatus.DEAD
         self._status = _status
 
@@ -249,3 +252,19 @@ def cmd(vm_id, cmd):
     data = get_data(packets)
 
     return data
+
+
+def get_resolution(vm_id):
+    """
+    Get the resolution of this vm. "900x600", etc.
+    """
+    # TODO: Implement the *real* stuff.
+    return "900x600"
+
+
+def get_RAM(vm_id):
+    """
+    Get the total RAM of this vm in GB. "2GB", etc.
+    """
+    # TODO: Implement the *real* stuff
+    return "2GB"

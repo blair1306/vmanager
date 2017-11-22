@@ -73,8 +73,8 @@ class ListBox(tk.Listbox):
         if not options:
             return
 
-        for i in options:
-            self.insert(ListBox.END)
+        for option in options:
+            self.insert(ListBox.END, option)
 
     def _delete_all_options(self):
         self.delete(0, ListBox.END)
