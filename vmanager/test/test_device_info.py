@@ -36,7 +36,7 @@ def test_model():
 
 def test_controller():
     device_info_list = Controller._get_device_info_list()
-    print device_info_list
+    print(device_info_list)
 
 
 def test_build():

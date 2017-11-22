@@ -24,6 +24,31 @@ def main():
 
     app.run()
 
+def test_custom_listbox():
+    app = App()
+    frame = create_frame(app)
+    
+    listbox = create_listbox(frame)
+    options = ['5554', '5555']
+    listbox.update_options(options)
+
+    app.run()
+
+
+def test_listbox():
+    app = App()
+    frame = create_frame(app)
+
+    import Tkinter
+    listbox = Tkinter.Listbox(frame)
+    listbox.pack()
+
+    options = ['one', 'two', 'three']
+    for option in options:
+        listbox.insert(Tkinter.END, option)
+
+    app.run()
+
 
 if __name__ == '__main__':
     main()
