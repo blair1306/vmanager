@@ -9,3 +9,5 @@ VMMANAGER.CONF
 *.py[cod]
 __pycache__/
 note.md
+
+.cache/

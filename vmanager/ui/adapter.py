@@ -38,9 +38,8 @@ def create_button(master, *args, **kwargs):
 def create_label(master, *args, **kwargs):
     return TkinterAdapter.create(LABEL, master, *args, **kwargs)
 
-
 def create_message(master, *args, **kwargs):
-    return TkinterAdapter.create(MESSAGE, master, *args, **kwargs)
+    return TkinterAdapter.create(MESSAGE, master=master, *args, **kwargs)
 
 
 def create_listbox(master, *args, **kwargs):
@@ -80,7 +79,7 @@ class TkinterAdapter(object):
 
         if name not in (TOPLEVEL, ):     # toplevel doesn't have pack().
             element.pack(side=side)
-        
+
         if name is SCROLLBAR:
             element.pack(fill=Y)
 
@@ -114,7 +113,7 @@ class TkinterAdapter(object):
         frame = ttk.Frame(master, borderwidth=borderwidth, *args, **kwargs)
 
         return frame
-    
+
     @staticmethod
     def _button(master, *args, **kwargs):
         text = ""
@@ -166,6 +165,9 @@ class TkinterAdapter(object):
 
         listbox = ListBox(master, selectmode=selectmode, width=width, *args, **kwargs)
 
+        # Solve the problem that selection of listbox gets lost when it loose focus.
+        listbox.config(exportselection=False)
+
         return listbox
 
     @staticmethod
@@ -181,7 +183,7 @@ class TkinterAdapter(object):
             title = kwargs['title']
             del kwargs['title']
 
-        toplevel = tk.Toplevel(master, *args, **kwargs)
+        toplevel = Toplevel(master, *args, **kwargs)
         toplevel.title(title)
 
         return toplevel
@@ -191,6 +193,23 @@ class TkinterAdapter(object):
         scrollbar = ttk.Scrollbar(master, *args, **kwargs)
 
         return scrollbar
+
+
+def bind_double_click(widget, handler):
+    """
+    Bind a handler to be triggered by mouse double click.
+    """
+    assert hasattr(widget, "bind")
+    widget.bind('<Double-Button-1>', handler)
+
+
+def bind_click(button, handler):
+    """
+    Bind a handler to a button so that it gets triggered when widget gets clicked.
+    """
+    assert hasattr(button, "config")
+
+    button.config(command=handler)
 
 
 class UINode(object):

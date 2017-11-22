@@ -8,3 +8,4 @@ from vmanager.test.set_trace import set_trace
 
 
 def main():
+    pass

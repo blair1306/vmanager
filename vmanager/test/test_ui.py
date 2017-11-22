@@ -16,12 +16,12 @@ def main():
     listbox = create_listbox(app)
     button = create_button(frame)
     toplevel = create_toplevel()
-    message = create_message(frame1)
+    message = create_message(master=None, text="hello")
 
     entry = create_entry(frame)
     scrollbar = create_scrollbar(frame1)
     label = create_label(frame1)
-    
+
     app.run()
 
 

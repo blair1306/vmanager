@@ -6,7 +6,7 @@ CH = "ch"
 LANS = [EN, CH]
 
 # Default language is english.
-lan = EN
+lan = CH
 
 
 def get_text(text, _lan=None):
@@ -26,6 +26,9 @@ def set_lan(_lan):
 def set_ch():
     set_lan(CH)
 
+
+def set_en():
+    set()
 
 def set(lan=EN):
     set_lan(lan)

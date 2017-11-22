@@ -3,8 +3,10 @@ from __future__ import absolute_import
 # Get info about the status of a virtual machine running in the remote server
 
 import socket
+import re
 
-from .packet import create_status, create_status_all, create_devices, create_restart, create_install, create_install_all
+from .packet import create_status, create_status_all, create_devices
+from .packet import create_restart, create_install, create_install_all
 from .packet import create_uninstall, create_uninstall_all, create_cmd
 from .packet import send_packet, read_packets, get_data
 from .packet import check_header
@@ -45,7 +47,18 @@ class VMIsAlive(VMShederException):
 class VMStatus(object):
     ALIVE = 0
     FBV_IS_DEAD = 1
-    DEAD  = 2
+    DEAD = 2
+
+    def __init__(self, _status):
+        assert VMStatus.ALIVE <= _status <= VMStatus.DEAD
+        self._status = _status
+
+    def __repr__(self):
+        return {
+            VMStatus.ALIVE: "Alive",
+            VMStatus.FBV_IS_DEAD: "fbv is dead",
+            VMStatus.DEAD: "Dead"
+            }.get(self._status)
 
 
 def _connect():
@@ -71,9 +84,27 @@ def _send_and_read_finally_close(sock, packet):
 
 
 def get_status(vm_id):
-    """use to emulate command of this FORMAT: vmsheler status 5554
-    where "5554" is the vm_id.
-    vm_id being the string representation of the interget.
+    """ Get status of vm_id, return ALIVE or DEAD or FBV_IS_DEAD.
+    """
+    reason, _, fbv_connected, _ = get_detailed_status(vm_id)
+    if reason == "OK":
+        if fbv_connected:
+            status = VMStatus.ALIVE
+        else:
+            status = VMStatus.FBV_IS_DEAD
+    else:
+        status = VMStatus.DEAD
+
+    return status
+
+
+def get_detailed_status(vm_id):
+    """ Get the detailed status of the device specified by the vm_id.
+    Return
+    @reason: the reason of the last action taken on this vm associated with this vm_id.
+    @state: the state the vm is in
+    @fbv_connected: True if fbv is connected False if otherwise.
+    @app_connected: True if app is connected False if otherwise.
     """
     packet = create_status(vm_id)
     sock = _connect()
@@ -85,15 +116,27 @@ def get_status(vm_id):
     # reason=OK indicates that the device is alive.
 
     data = get_data(packets)
-    if b"reason=OK" in data:
-        if b"fbv_alived=true" in data:
-            status = VMStatus.ALIVE
-        else:
-            status = VMStatus.FBV_IS_DEAD
-    else:
-        status = VMStatus.DEAD
 
-    return status
+    pattern = r"vm_id=(\d+)&reason=(\w+)&state=(\w+)&fbv_connected=(\w+)&app_connected=(\w+)"
+    match = re.match(pattern, data)
+
+    _id, reason, state, _fbv_connected, _app_connected = match.groups()
+    assert _id == vm_id
+
+    fbv_connected = _is_true(_fbv_connected)
+    app_connected = _is_true(_app_connected)
+
+    return reason, state, fbv_connected, app_connected
+
+
+def _is_true(true_or_false):
+    """ Return True if true_or_false is "true",
+    False if true_or_false is "false"
+    """
+    TRUE_AND_FALSE = ("true", "false")
+    assert true_or_false in TRUE_AND_FALSE
+
+    return true_or_false is TRUE_AND_FALSE[0]
 
 
 def get_status_all():
@@ -119,7 +162,9 @@ def devices():
     check_header(packets, Header.TYPE_DEVICES)
     data = get_data(packets)
 
-    return data
+    devices = data.split()
+
+    return devices
 
 
 def request_restart(vm_id):
@@ -132,13 +177,13 @@ def request_restart(vm_id):
 
     send_packet(sock, packet)
     # TODO: for now this doesn't work.
-    #packet = read_packet(sock)
+    # packet = read_packet(sock)
 
     sock.close()
 
-    #check_header(packet, Header.TYPE_RESTART)
+    # check_header(packet, Header.TYPE_RESTART)
 
-    #return packet.data
+    # return packet.data
 
 
 def install(vm_id, apk):

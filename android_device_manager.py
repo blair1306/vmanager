@@ -29,7 +29,7 @@ except ImportError:
     import pdb as dbg
 
 
-import vmsheder
+import vmanager.vmsheder
 
 
 PROTOCOL_VERSION = "0.1"

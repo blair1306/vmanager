@@ -53,9 +53,8 @@ class ListBox(tk.Listbox):
         return selections
 
     def get_selection(self):
+        # return None if no item is in the list or is under selection.
         assert self._selectmode is ListBox.SINGLE
-
-
 
         selections = self.get_selections()
 

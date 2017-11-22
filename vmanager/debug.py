@@ -1,3 +1,5 @@
+import sys
+
 try:
     import pudb as dbg
 except ImportError:
@@ -7,3 +9,4 @@ except ImportError:
 def set_trace(on=True):
     if on:
         dbg.set_trace()
+
