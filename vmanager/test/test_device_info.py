@@ -22,16 +22,14 @@ def test_view():
 
 
 def test_model():
-    device = DeviceInfo('5554', '600x800', '1', 'alive')
+    device = DeviceInfo('5554')
     assert device.id == '5554'
-    assert device.status == 'alive'
+
     with pytest.raises(AttributeError):
         device.id = '5555'
 
     device1 = copy.copy(device)
     device2 = copy.copy(device)
-
-    device_list_box = DeviceListBox()
 
 
 def test_controller():
@@ -41,6 +39,7 @@ def test_controller():
 
 def test_build():
     app = App()
+    app.set_title('VManager')
     # set_trace()
     frame = build_device_info_frame(app)
     app.run()
@@ -48,7 +47,6 @@ def test_build():
 
 def main_test():
     test_build()
-
 
 
 if __name__ == '__main__':

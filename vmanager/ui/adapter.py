@@ -212,6 +212,20 @@ def bind_click(button, handler):
     button.config(command=handler)
 
 
+def resize(widget, **kwargs):
+    """
+    Resize a gui widget and that could be the width, height, etc.
+    """
+    if isinstance(widget, ListBox):
+        if 'width' in kwargs:
+            width = kwargs['width']
+            del kwargs['width']
+
+            widget.config(width=width)
+    else:
+        raise NotImplementedError()
+
+
 class UINode(object):
     """
     """

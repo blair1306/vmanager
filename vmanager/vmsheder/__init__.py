@@ -8,3 +8,4 @@ from .api import install, install_all
 from .api import uninstall, uninstall_all
 from .api import cmd
 from .api import get_resolution, get_RAM
+from .api import list_installed_packages

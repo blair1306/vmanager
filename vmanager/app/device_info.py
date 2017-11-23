@@ -8,12 +8,15 @@ from .text import get_text, DONE
 from ..debug import set_trace
 from ..ui import bind_double_click, bind_click
 from ..ui import show_info, show_warning, show_error
+from ..ui import resize
 
 from ..vmsheder import devices, get_status, VMStatus
 from ..vmsheder import get_resolution, get_RAM
 
 import logging
 from logging.config import fileConfig
+
+from .. import TESTING
 
 # fileConfig('logging_config.ini')
 
@@ -25,10 +28,6 @@ formatter = logging.Formatter(
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
-
-
-# globbal toggle for testing-related stuff.
-testing = True
 
 
 def build_device_info_frame(root):
@@ -51,16 +50,17 @@ def device_info_view(master):
     """
     view = create_frame(master)
 
-    # The left sub-frame of the whole frame view.
+    # The top sub-frame of the whole frame view.
     master = create_frame(view)
-    view.title = create_label(master)
-
-    # Just to give a little extra space between the title and the rest of the frame.
-    create_label(master)
 
     create_label(master, anchor=None, text=get_text(LIST_OF_DEVICES))
+
+    # Just to give a little extra space between the title and the listbox.
+    create_label(master)
+
     view.listbox = create_listbox(master)
 
+    # The bottom sub-frame of the whole frame view.
     master = create_frame(view)
 
     view.select_button = create_button(master, left=True, text=get_text(SELECT))
@@ -70,42 +70,59 @@ def device_info_view(master):
     return view
 
 
+def get_device_info(vm_id):
+    """
+    Get the device info of a given vm_id.
+    Return the DeviceInfo object of the given vm_id.
+    """
+    if TESTING:
+        return DeviceInfo(vm_id)
+
+    # Get the real info through vmsheder.
+    status, resolution, ram_gb = get_status(vm_id), get_resolution(vm_id), get_RAM(vm_id)
+    
+    return DeviceInfo(vm_id, resolution, ram_gb, status)
+
+
+def get_all_device_infos():
+    """
+    Get the list of device info of all vms on this machine.
+    """
+    device_id_list = devices() if not TESTING else ['5555', '5557']
+    all_device_info_list = []
+
+    for _id in device_id_list:
+        device_info = DeviceInfo(_id)
+        all_device_info_list.append(device_info)
+    
+    return all_device_info_list
+
+
 class DeviceInfo(object):
     """
     info of a virtual device such as it's screen resolution, RAM size etc.
+    id, status, resolution and RAM can be accessed by accesing it's member variables,
+    i.e. device_info.id, device_info.status, device_info.resolution and device_info.RAM etc.
     """
-    def __init__(self, _id):
+    def __init__(self, _id='6666', _resolution="0x0", _RAM_GB=0, _status=VMStatus()):
         """
         @param id: the id of vm.
         """
         self._id = _id
-        self._res = "0x0"
-        self._RAM_GB = 0
-        self._status = VMStatus()
-
-        self.init()
-
-    def init(self):
-        """
-        Get the real info about this device's status through vmsheder.
-        """
-        if testing:
-            # For testing when vmsheder server isn't available.
-            get_status = lambda vm_id: VMStatus()
-            get_resolution = lambda vm_id: "0x0"
-            get_RAM = lambda vm_id: 0
-
-        self._res = get_resolution(self._id)
-        self._RAM_GB = get_RAM(self._id)
-        self._status = get_status(self._id)
+        self._resolution = _resolution
+        self._RAM_GB = _RAM_GB
+        self._status = _status
 
     def __repr__(self):
-        return '[%s: %s] (%s: %s) (%s: %sGB) (%s: %s)' % (
+        return '[%s: %s] (%s: %s) (%s: %s) (%s: %s GB)' % (
                 get_text(DEVICE_ID), self._id,
-                get_text(RESOLUTION), self._res,
+                get_text(STATUS), self._status,
+                get_text(RESOLUTION), self._resolution,
                 get_text(RAM_SIZE_IN_GB), self._RAM_GB,
-                get_text(STATUS), self._status
                 )
+    
+    def __len__(self):
+        return len(repr(self))
 
     @property
     def id(self):
@@ -116,7 +133,11 @@ class DeviceInfo(object):
         return self._status
 
     @property
-    def ram(self):
+    def resolution(self):
+        return self._resolution
+
+    @property
+    def RAM(self):
         """
         return the device's RAM in GBs
         """
@@ -135,19 +156,22 @@ class DeviceListBox(object):
         # The listbox data model that is used to show the gui interface.
         self._listbox = listbox
 
-        logger.debug(
-            "self._listbox is listbox: %s" % (id(listbox) == id(self._listbox))
-        )
-        
         # The actual list of DeviceInfo.
-        self._device_list = None
+        self._device_info_list = None
 
-    def update_device_list(self):
+    def update_device_info_list(self):
         # update the connected devices list.
-        self._device_list = DeviceListBox._get_device_info_list()
+        self._device_info_list = get_all_device_infos()
+
+        # Resize the width of the listbox
+        # max_width = max([l for l in map(len, self._device_info_list)])
+        max_width = 0       # TODO: this seems to do the trick, figure out why.
+        logger.debug("max_width: %s" % max_width)
+
+        resize(self._listbox, width=max_width)
 
         # Update the listbox options.
-        options = [repr(device_info) for device_info in self._device_list]
+        options = [repr(device_info) for device_info in self._device_info_list]
         self._listbox.update_options(options)
 
         # Select the default one (the first one if there is one)
@@ -159,12 +183,14 @@ class DeviceListBox(object):
         return None if no device is under selection or no device is in
         the list.
         """
-        index = self._listbox.get_selection()
+        indexes = self._listbox.get_selected_index()
+        logger.debug("vm_id under current selection: %s" % indexes)
 
-        if index is None:
+        if not indexes:
             id = None
         else:
-            id = self._device_list[index].id
+            index = indexes[0]
+            id = self._device_info_list[index].id
 
         return id
 
@@ -174,23 +200,11 @@ class DeviceListBox(object):
 
     id = property(get_id, set_id)
 
-    @staticmethod
-    def _get_device_info_list():
+    def __len__(self):
         """
-        Get a list of DeviceInfo 
+        how many device info are in this.
         """
-        logger.debug("")
-        
-        device_info_list = []
-
-        if testing:
-            devices = lambda: ['5554', '5556']
-
-        for device_id in devices():
-            device_info = DeviceInfo(device_id)
-            device_info_list.append(device_info)
-        
-        return device_info_list
+        return len(self._device_info_list)
 
 
 class Controller(object):
@@ -223,12 +237,13 @@ class Controller(object):
 
     def refresh_device_list(self, popup=True):
         # Show a pop up message indicating that refresh is done.
-        self._model.update_device_list()
+        self._model.update_device_info_list()
 
         if popup:
             show_info(get_text(DONE))
 
     def reboot_device(self):
+        logger.debug("device selected: %s" % self._selected_id)
         show_info(get_text(DONE))
 
     def select_device(self, event=None):
@@ -237,6 +252,7 @@ class Controller(object):
         @param event is a callback convention.
         """
         logger.debug("event=%s" % repr(event))
+        logger.debug("device selected: %s" % self._selected_id())
 
         show_info(get_text(DONE))
 

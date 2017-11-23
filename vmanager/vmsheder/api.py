@@ -62,6 +62,10 @@ class VMStatus(object):
             VMStatus.FBV_IS_DEAD: "fbv is dead",
             VMStatus.DEAD: "Dead"
             }.get(self._status)
+    
+    @property
+    def status(self):
+        return self._status
 
 
 def _connect():
@@ -268,3 +272,18 @@ def get_RAM(vm_id):
     """
     # TODO: Implement the *real* stuff
     return "2GB"
+
+
+def list_installed_packages(vm_id,  third_party=True):
+    """
+    List the packages installed on this vm.
+    @param third_party: third party packages only, which excludes pre-installed system packages etc.
+    """
+    # TODO: Implement the *real* stuff
+    installed_packages = [
+        "com.chessking.android.learn.ctart4",
+        "com.netease.cloudmusic",
+        "tv.danmaku.bili",
+    ]
+
+    return installed_packages
