@@ -9,6 +9,7 @@ from .text import LIST_OF_DEVICES, PLEASE_SELECT_A_DEVICE, \
                   REFRESH, REBOOT_DEVICE, SELECT
 from .text import DEVICE_ID, RESOLUTION, RAM_SIZE_IN_GB, STATUS
 from .text import get_text, DONE
+from .text import DEVICE_ADMINISTRATION
 
 from ..debug import set_trace, logging_default_configure
 
@@ -34,7 +35,7 @@ logger = logging.getLogger(__name__)
 logging_default_configure(logger)
 
 
-TITLE = 'Device Info'
+TITLE = get_text(DEVICE_ADMINISTRATION)
 
 
 def device_info_window():

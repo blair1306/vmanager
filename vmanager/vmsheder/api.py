@@ -287,3 +287,18 @@ def list_installed_packages(vm_id,  third_party=True):
     ]
 
     return installed_packages
+
+
+def list_apk():
+    """
+    list the apk files on the server that is to be installed.
+    """
+    # TODO: The real stuff.
+    apk_list = [
+        'google',
+        'baidu',
+        'youtube',
+        'youku',
+    ]
+
+    return apk_list

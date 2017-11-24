@@ -49,6 +49,7 @@ TEXTS = \
     \
     PACKAGE_MANAGEMENT, \
     SELECT, \
+    CANCEL, \
     REFRESH, \
     LIST_OF_DEVICES, \
     \
@@ -79,7 +80,7 @@ TEXTS = \
     RESOLUTION, \
     RAM_SIZE_IN_GB, \
     STATUS, \
-        = range(28)  # Increase this number everytime when adding new items to the list.
+        = range(29)  # Increase this number everytime when adding new items to the list.
         # TODO: there must be a better way than this.
 
 
@@ -123,6 +124,10 @@ DICT = {
     SELECT : {
         EN: "Select",
         CH: "选择"
+    },
+    CANCEL : {
+        EN: "CANCEL",
+        CH: "取消"
     },
     REFRESH : {
         EN: "Refresh",

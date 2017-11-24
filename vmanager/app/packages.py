@@ -10,23 +10,27 @@ from ..ui import create_window
 
 from .text import get_text
 from .text import INSTALL, UNINSTALL, REFRESH, DEVICE_SELECTED, DONE, PLEASE_SELECT_AT_LEAST_ONE_PACKAGE_TO_UNINSTALL
+from .text import PACKAGE_MANAGEMENT
 
 from ..vmsheder import list_installed_packages
 
 import logging
 from ..debug import logging_default_configure
 
+from .dynamic_listbox import DynamicListBox
+
 
 logger = logging.getLogger(__name__)
 logging_default_configure(logger)
 
 
-TITLE = 'Package Management'
+TITLE = get_text(PACKAGE_MANAGEMENT)
 
 
 def packages_window(vm_id='6666'):
     """
     A ready to use window.
+    @param vm_id
     """
     window = create_window(TITLE)
     build_packages_frame(window, vm_id)
@@ -34,18 +38,18 @@ def packages_window(vm_id='6666'):
     return window
 
 
-def build_packages_frame(master, vm_id='6666'):
+def build_packages_frame(master, vm_id, *args, **kwargs):
     """
     Return a ready to use frame with everythng pre-configured.
     @param vm_id: the vm_id whose packages this frame is going to manage.
     """
-    view = packages_view(master)
-    view.controller = Controller(vm_id, view.title, view.listbox,
-                            view.install_button, view.uninstall_button, view.refresh_button, view)
+    view = packages_view(master, vm_id, *args, **kwargs)
+    view.controller = Controller(view.listbox,
+                            view.install_button, view.uninstall_button, view.refresh_button, view, *args, **kwargs)
     return view
 
 
-def packages_view(master):
+def packages_view(master, vm_id, *args, **kwargs):
     """ The V in the MVC.
     The view that provides a listbox for showing packages installed on a given vm, and buttons
     for installing new packages, uninstalling selected packages, refreshing the installed packages list,
@@ -56,8 +60,8 @@ def packages_view(master):
     # The top sub-frame of the whole frame for displaying the packages installed on a vm.
     master = create_frame(view)
 
-    # This is the title that shows "Package Management for vm_id", and will be later configured.
-    view.title = create_label(master)
+    # This is the title that shows "Device Selected: vm_id", and will be later configured.
+    view.title = create_label(master, text="%s: %s" % (get_text(DEVICE_SELECTED), vm_id))
 
     view.listbox = create_ms_listbox(master)
     autoresize(view.listbox, "width")
@@ -72,34 +76,20 @@ def packages_view(master):
     return view
 
 
-class PackageListBox(object):
+def create_package_listbox(vm_id, listbox):
     """ The M in the MVC.
     This is a listbox that is used to show packages installed in a given vm.
     which provides Update the list of packages installed, get a list of packages
     currently selected.
     """
-    def __init__(self, vm_id, listbox):
-        self._vm_id = vm_id
-        self._listbox = listbox
+    logger.debug('vm_id: %s' % vm_id)
 
-        self._package_list = None
+    def update_func():
+        return list_installed_packages(vm_id)
     
-    def update_package_list(self):
-        """
-        Update the package list of currently installed packages on self._vm_id.
-        """
-        self._package_list = list_installed_packages(self._vm_id)
-        # Update the actual gui listbox.
-        self._listbox.update_options(self._package_list)
-    
-    def get_selected_packages(self):
-        """
-        Get a list of currelty selected packages.
-        """
-        index_list = self._listbox.get_selected_index_list()
-        package_list = [self._package_list[index] for index in index_list]
+    package_listbox = DynamicListBox(update_func, listbox)
 
-        return package_list
+    return package_listbox
 
 
 class Controller(object):
@@ -108,15 +98,12 @@ class Controller(object):
     , in the form of "Package Management for %s" % vm_id.
     Also needs to configure the buttons in the view.
     """
-    def __init__(self, _vm_id, title, _listbox, install_button, uninstall_button, refresh_button, window=None):
+    def __init__(self, _listbox, install_button, uninstall_button, refresh_button, window=None, vm_id='6666'):
         """
         @param _vm_id: id of the vm whose packages are to be managed.
         @param title: the title to be configured.
         """
-        # Set the text for the title.
-        set_text(title, "%s: %s" % (get_text(DEVICE_SELECTED), _vm_id))
-
-        self._model = PackageListBox(_vm_id, _listbox)
+        self._model = create_package_listbox(vm_id, _listbox)
 
         # Some gui show popup relative to it's parent and if it's parent isn't specified, it will show
         # popup relative to the root of the gui which is annoying, cause it's easily overlooked.
@@ -130,6 +117,16 @@ class Controller(object):
 
         self.refresh_package_list(False)
     
+    def refresh_when_done(func):
+        """
+        Decorator for refreshing the installed list when an action to the list is done.
+        """
+        def wrapper(self):
+            func(self)
+            self.refresh_package_list(False)
+        return wrapper
+
+    @refresh_when_done
     def install_packages(self):
         """
         Opens a new window to let user to select from a list of packages to install.
@@ -138,14 +135,12 @@ class Controller(object):
 
         show_info(get_text(DONE), parent=self._window)
         
-        # Refresh the list to see the effect.
-        self.refresh_package_list(False)
-    
+    @refresh_when_done
     def uninstall_packages(self):
         """
         Uninstall the packages under selection.
         """
-        uninstall_list = self._model.get_selected_packages()
+        uninstall_list = self._model.selections
         if not uninstall_list:
             show_warning(get_text(PLEASE_SELECT_AT_LEAST_ONE_PACKAGE_TO_UNINSTALL), parent=self._window)
             return
@@ -154,25 +149,13 @@ class Controller(object):
 
         show_info(get_text(DONE), parent=self._window)
 
-        # Refresh the list to see the effect.
-        self.refresh_package_list(False)
-    
-    # TODO: figure this out.
-    @staticmethod
-    def refresh_when_done(func):
-        """
-        Decorator for refreshing the installed list when an action to the list is done.
-        """
-        def wrapper():
-            func()
-            self.refresh_package_list(False)
-        return wrapper
-
     def refresh_package_list(self, popup=True):
         """
         Refresh the list of currently installed packages.
         """
-        self._model.update_package_list()
+        logger.debug('')
+
+        self._model.update()
 
         if popup:
             show_info(get_text(DONE), parent=self._window)
