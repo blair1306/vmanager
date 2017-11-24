@@ -10,6 +10,7 @@ from vmanager.app.device_info import device_info_view
 from vmanager.app.device_info import DeviceInfo, DeviceListBox
 from vmanager.app.device_info import Controller
 from vmanager.app.device_info import build_device_info_frame
+from vmanager.app.device_info import device_info_window
 from vmanager.debug import set_trace
 
 
@@ -44,9 +45,13 @@ def test_build():
     frame = build_device_info_frame(app)
     app.run()
 
+def test_window():
+    window = device_info_window()
+    mainloop()
+
 
 def main_test():
-    test_build()
+    test_window()
 
 
 if __name__ == '__main__':

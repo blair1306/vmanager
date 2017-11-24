@@ -1,20 +1,29 @@
+"""
+This module provides the device management window.
+"""
+
 from ..ui import *
+
 from .text import get_text, set_ch, set_en, set_lan, get_lan
 from .text import LIST_OF_DEVICES, PLEASE_SELECT_A_DEVICE, \
                   REFRESH, REBOOT_DEVICE, SELECT
 from .text import DEVICE_ID, RESOLUTION, RAM_SIZE_IN_GB, STATUS
 from .text import get_text, DONE
 
-from ..debug import set_trace
+from ..debug import set_trace, logging_default_configure
+
 from ..ui import bind_double_click, bind_click
 from ..ui import show_info, show_warning, show_error
-from ..ui import resize
+from ..ui import autoresize
+from ..ui import create_window
+
+from .packages import packages_window
 
 from ..vmsheder import devices, get_status, VMStatus
 from ..vmsheder import get_resolution, get_RAM
 
 import logging
-from logging.config import fileConfig
+# from logging.config import fileConfig
 
 from .. import TESTING
 
@@ -22,22 +31,30 @@ from .. import TESTING
 
 logger = logging.getLogger(__name__)
 
-handler = logging.StreamHandler()
-formatter = logging.Formatter(
-    '%(asctime)s %(name)-12s %(levelname)-8s %(filename)s:%(lineno)s %(funcName)-20s %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)
+logging_default_configure(logger)
 
 
-def build_device_info_frame(root):
+TITLE = 'Device Info'
+
+
+def device_info_window():
+    """
+    A ready to use window
+    """
+    window = create_window(TITLE)
+    view = build_device_info_frame(window)
+
+    return window
+
+
+def build_device_info_frame(master):
     """
     Helper function to create a pre-configured frame ready to use.
     Get device info frame.
     """
-    view = device_info_view(root)
+    view = device_info_view(master)
     view.controller = Controller(view.listbox,
-            view.refresh_button, view.reboot_button, view.select_button)
+            view.refresh_button, view.reboot_button, view.select_button, view)
 
     return view
 
@@ -59,6 +76,7 @@ def device_info_view(master):
     create_label(master)
 
     view.listbox = create_listbox(master)
+    autoresize(view.listbox, "width")
 
     # The bottom sub-frame of the whole frame view.
     master = create_frame(view)
@@ -147,7 +165,8 @@ class DeviceInfo(object):
 class DeviceListBox(object):
     """
     The actual model of this gui.
-    Which has a reference to an actual gui listbox that is used to display the list of vms.
+    which provides the following functions. Update the vm id currently under selection.
+    Update the device info list of vms curently connected to this pc.
     """
     def __init__(self, listbox):
         """
@@ -163,19 +182,9 @@ class DeviceListBox(object):
         # update the connected devices list.
         self._device_info_list = get_all_device_infos()
 
-        # Resize the width of the listbox
-        # max_width = max([l for l in map(len, self._device_info_list)])
-        max_width = 0       # TODO: this seems to do the trick, figure out why.
-        logger.debug("max_width: %s" % max_width)
-
-        resize(self._listbox, width=max_width)
-
         # Update the listbox options.
         options = [repr(device_info) for device_info in self._device_info_list]
         self._listbox.update_options(options)
-
-        # Select the default one (the first one if there is one)
-        self._listbox.select_default()
 
     def get_id(self):
         """
@@ -183,7 +192,7 @@ class DeviceListBox(object):
         return None if no device is under selection or no device is in
         the list.
         """
-        indexes = self._listbox.get_selected_index()
+        indexes = self._listbox.get_selected_index_list()
         logger.debug("vm_id under current selection: %s" % indexes)
 
         if not indexes:
@@ -206,6 +215,12 @@ class DeviceListBox(object):
         """
         return len(self._device_info_list)
 
+    def select_default(self):
+        """
+        Select the first one if there is one.
+        """
+        return self._listbox.select_default()
+
 
 class Controller(object):
     """
@@ -213,14 +228,17 @@ class Controller(object):
     refresh, reboot, and select a device.
     """
     def __init__(self, listbox,
-                 refresh_button, reboot_button, select_button):
+                 refresh_button, reboot_button, select_button, window=None):
         """
         @param device_listbox is the listbox that is going to show info about
         the devices detected for further operations.
         @param refresh_button, reboot_button, select_button are the buttons
         that will be binded with their respective functionalities.
+        @param window: use as parent of popup messaegs.
         """
         self._model = DeviceListBox(listbox)
+
+        self._window = window
 
         # bind refresh button to it's handler
         bind_click(refresh_button, self.refresh_device_list)
@@ -239,12 +257,15 @@ class Controller(object):
         # Show a pop up message indicating that refresh is done.
         self._model.update_device_info_list()
 
+        # Select the default one (the first one if there is one)
+        self._model.select_default()
+
         if popup:
-            show_info(get_text(DONE))
+            show_info(get_text(DONE), parent=self._window)
 
     def reboot_device(self):
-        logger.debug("device selected: %s" % self._selected_id)
-        show_info(get_text(DONE))
+        logger.debug("device selected: %s" % self.selected_id)
+        show_info(get_text(DONE), parent=self._window)
 
     def select_device(self, event=None):
         """
@@ -252,11 +273,12 @@ class Controller(object):
         @param event is a callback convention.
         """
         logger.debug("event=%s" % repr(event))
-        logger.debug("device selected: %s" % self._selected_id())
+        logger.debug("device selected: %s" % self.selected_id)
 
-        show_info(get_text(DONE))
+        packages_window(self.selected_id)
 
-    def _selected_id(self):
+    @property
+    def selected_id(self):
         """
         Get the id of virtual device currently under selection.
         """
