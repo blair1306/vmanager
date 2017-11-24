@@ -3,6 +3,8 @@ from .compat import tk, ttk
 from .widgets import Frame, ListBox, Toplevel
 from .app import App
 
+import logging
+from ..debug import logging_default_configure
 
 
 LEFT = tk.LEFT
@@ -22,6 +24,9 @@ LISTBOX = "listbox"
 ENTRY = "entry"
 TOPLEVEL = "toplevel"
 SCROLLBAR = "scrollbar"
+
+logger = logging.getLogger(__name__)
+logging_default_configure(logger)
 
 
 # Top level widgets' master is set to be root by default.
@@ -46,6 +51,9 @@ def create_listbox(master, *args, **kwargs):
     """A listbox with only one item selectable at a time."""
     return TkinterAdapter.create(LISTBOX, master, *args, **kwargs)
 
+def create_ms_listbox(master, *args, **kwargs):
+    """A listbox that allows multiple selections."""
+    return create_listbox(master, *args, selectmode=ListBox.MULTIPLE, **kwargs)
 
 def create_entry(master, *args, **kwargs):
     return TkinterAdapter.create(ENTRY, master, *args, **kwargs)
@@ -222,8 +230,27 @@ def resize(widget, **kwargs):
             del kwargs['width']
 
             widget.config(width=width)
-    else:
-        raise NotImplementedError()
+            return
+
+
+def autoresize(widget, _property):
+    """
+    Auto-resize a widget's property.
+    """
+    if isinstance(widget, ListBox):
+        if 'width' == _property:
+            # Is this the trick of autoresizing in tk?
+            resize(widget, width=0)
+            return
+    
+    logger.debug("Trying to resize a unsupported widget: %s" % repr(widget))
+    
+
+def set_text(widget, text=""):
+    """
+    Set the text of a given widget.
+    """
+    widget.configure(text=text)
 
 
 class UINode(object):

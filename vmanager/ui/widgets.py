@@ -40,7 +40,7 @@ class ListBox(tk.Listbox):
         self._delete_all_options()
         self._append_options(options)
 
-    def get_selected_index(self):
+    def get_selected_index_list(self):
         """
         Get a tuple of the indeces of the items currently under selection.
         Return () if No item is under selection.
