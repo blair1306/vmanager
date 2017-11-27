@@ -14,18 +14,26 @@ def show_info(message, parent=None, **kwargs):
     @param parent: the parent of the message, the center of where the message will be.
     """
     logger.debug('The parent is: %s' % parent)
-    MessageBox.showinfo(message=message, parent=parent, **kwargs)
+    return MessageBox.showinfo(message=message, parent=parent, **kwargs)
 
 
 def show_warning(message, parent=None, **kwargs):
     """
     Show a pop-up warning message.
     """
-    MessageBox.showwarning(message=message, parent=parent, **kwargs)
+    return MessageBox.showwarning(message=message, parent=parent, **kwargs)
 
 
 def show_error(message, parent=None, **kwargs):
     """
     Show a pop-up error message.
     """
-    MessageBox.showerror(message=message, parent=parent, **kwargs)
+    return MessageBox.showerror(message=message, parent=parent, **kwargs)
+
+
+def ask_ok_cancel(message, parent=None, **kwargs):
+    """
+    Show a pop-up asking the user if it's okay or cancel.
+    Return true if it's okay.
+    """
+    return MessageBox.askokcancel(message=message, parent=parent, **kwargs)

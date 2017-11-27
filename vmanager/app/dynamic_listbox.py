@@ -1,4 +1,8 @@
-# This module provides a listbox with dynamic content that can be updated by calling it's update function.
+"""
+This module provides a listbox with dynamic content that
+can be updated by calling it's update function.
+"""
+
 
 from ..ui import create_listbox
 

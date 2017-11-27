@@ -5,11 +5,12 @@ This module provides a window that is used to manage all packages installed on a
 from ..ui import create_frame, create_label, create_button, create_entry
 from ..ui import create_listbox, create_ms_listbox, create_scrollbar, create_toplevel
 from ..ui import bind_click, set_text
-from ..ui import show_info, show_warning, show_error, autoresize
+from ..ui import show_info, show_warning, show_error, autoresize, ask_ok_cancel
 from ..ui import create_window
 
 from .text import get_text
-from .text import INSTALL, UNINSTALL, REFRESH, DEVICE_SELECTED, DONE, PLEASE_SELECT_AT_LEAST_ONE_PACKAGE_TO_UNINSTALL
+from .text import INSTALL, UNINSTALL, REFRESH, DEVICE_SELECTED, DONE, PLEASE_SELECT_AT_LEAST_ONE_PACKAGE
+from .text import INSTALL_THESE_PACKAGES, CANCELLED, UNINSTALL_THESE_PACKAGES
 from .text import PACKAGE_MANAGEMENT
 
 from ..vmsheder import list_installed_packages
@@ -18,6 +19,8 @@ import logging
 from ..debug import logging_default_configure
 
 from .dynamic_listbox import DynamicListBox
+
+from .file_list import file_list_window
 
 
 logger = logging.getLogger(__name__)
@@ -131,9 +134,19 @@ class Controller(object):
         """
         Opens a new window to let user to select from a list of packages to install.
         """
-        logger.debug('')
+        selected_apk_files = file_list_window().get()
+        logger.debug('Selected apk files:\n%s' % selected_apk_files)
 
-        show_info(get_text(DONE), parent=self._window)
+        if not selected_apk_files:
+            show_info(get_text(PLEASE_SELECT_AT_LEAST_ONE_PACKAGE), parent=self._window)
+            return
+
+        if ask_ok_cancel('%s?: %s' % (get_text(INSTALL_THESE_PACKAGES), selected_apk_files), parent=self._window):
+            # TODO: change _window to _view wherever possible.
+            show_info(get_text(DONE), parent=self._window)
+        else:
+            show_info(get_text(CANCELLED), parent=self._window)
+
         
     @refresh_when_done
     def uninstall_packages(self):
@@ -142,12 +155,16 @@ class Controller(object):
         """
         uninstall_list = self._model.selections
         if not uninstall_list:
-            show_warning(get_text(PLEASE_SELECT_AT_LEAST_ONE_PACKAGE_TO_UNINSTALL), parent=self._window)
+            show_warning(get_text(PLEASE_SELECT_AT_LEAST_ONE_PACKAGE), parent=self._window)
             return
 
         logger.debug("Packages to uninstall: %s" % uninstall_list)
 
-        show_info(get_text(DONE), parent=self._window)
+        if ask_ok_cancel('%s?: %s' % (get_text(UNINSTALL_THESE_PACKAGES), uninstall_list), parent=self._window):
+            show_info(get_text(DONE), parent=self._window)
+        else:
+            show_info(get_text(CANCELLED), parent=self._window)
+
 
     def refresh_package_list(self, popup=True):
         """

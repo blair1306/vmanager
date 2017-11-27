@@ -186,13 +186,7 @@ class TkinterAdapter(object):
 
     @staticmethod
     def _toplevel(master=None, *args, **kwargs):
-        title = ""
-        if 'title' in kwargs:
-            title = kwargs['title']
-            del kwargs['title']
-
         toplevel = Toplevel(master, *args, **kwargs)
-        toplevel.title(title)
 
         return toplevel
 

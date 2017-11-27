@@ -6,7 +6,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from vmanager.ui import *
-from vmanager.app.packages import packages_view, PackageListBox, build_packages_frame
+from vmanager.app.packages import packages_view#, PackageListBox, build_packages_frame
 from vmanager.app.packages import packages_window
 
 

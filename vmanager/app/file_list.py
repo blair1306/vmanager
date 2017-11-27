@@ -1,11 +1,15 @@
-# This module provides a window for selecting from a list of files.
+"""
+This module provides a window for selecting from a list of files.
+This file list window returns a list files selected when Select Button is hit.
+"""
 
-from ..ui import create_frame, create_listbox, create_button, create_label
-from ..ui import create_window
+
+from ..ui import create_frame, create_ms_listbox, create_button, create_label
+from ..ui import create_ret_window
 from ..ui import bind_click
 from ..ui import show_info, show_error, show_warning
 
-from .text import get_text, LIST_OF_FILE, SELECT, CANCEL, CANCELLED
+from .text import get_text, LIST_OF_FILE, SELECT, CANCEL, CANCELLED, DONE
 
 from .dynamic_listbox import DynamicListBox
 
@@ -25,8 +29,9 @@ def file_list_window(vm_id='6666'):
     """
     A window ready to use.
     """
-    window = create_window(TITLE)
-    build_list_view(window, vm_id)
+    window = create_ret_window(TITLE)
+    view = file_list_view(window, vm_id)
+    view.controller = Controller(view.listbox, view.select_button, view.cancel_button, view, window)
 
     return window
 
@@ -35,10 +40,7 @@ def build_list_view(master, vm_id):
     """
     A frame can be plug into a window.
     """
-    view = file_list_view(master, vm_id)
-    view.controller = Controller(view.listbox, view.select_button, view.cancel_button, view)
-
-    return view
+    raise NotImplementedError('file list frame can\'t be plug into other window.')
 
 
 def file_list_view(master, vm_id):
@@ -51,7 +53,7 @@ def file_list_view(master, vm_id):
     # the top sub-frame for listbox
     master = create_frame(view)
     create_label(master, text=vm_id)
-    view.listbox = create_listbox(master)
+    view.listbox = create_ms_listbox(master)
 
     # the bottom sub-frame for buttons
     master = create_frame(view)
@@ -77,19 +79,37 @@ class Controller(object):
     This is responsible for giving the view a title indicating that which vm this file list is for.
     And configuration of the buttons.
     """
-    def __init__(self, listbox, select_button, cancel_button, window=None):
+    def __init__(self, listbox, select_button, cancel_button, view=None, window=None):
         """
         @param window, the parent of popup message. so the popup appears at the right place.
         """
         self._model = create_file_listbox(listbox)
 
+        self._view = view
         self._window = window
 
         bind_click(select_button, self._select)
         bind_click(cancel_button, self._cancel)
+
+        self.refresh_file_list(False)
     
     def _select(self):
-        logger.debug('Selected apk files: %s' % self._model.selections)
+        if not self._model.selections:
+            selection = b''
+        else:
+            selection = b'\n'.join(self._model.selections)
+        logger.debug('Selected apk files: %s' % selection)
+        self._window.ret(selection)
 
     def _cancel(self):
-        show_info(get_text(CANCELLED))
+        """
+        Return '' cause the return value has to be a bytes type var.
+        """
+        logger.debug('Canceled.')
+        self._window.ret(b'')
+    
+    def refresh_file_list(self, popup=True):
+        self._model.update()
+
+        if popup:
+            show_info(get_text(DONE), self._view)

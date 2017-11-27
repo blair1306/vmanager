@@ -88,5 +88,7 @@ class ListBox(tk.Listbox):
 
 
 class Toplevel(tk.Toplevel):
-    def __init__(self, master=None, *args, **kwargs):
+    def __init__(self, master=None, title='', resizable=False, *args, **kwargs):
         tk.Toplevel.__init__(self, master, *args, **kwargs)
+        self.resizable(resizable, resizable)
+        self.title(title)

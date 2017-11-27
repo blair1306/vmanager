@@ -62,7 +62,7 @@ TEXTS = \
     \
     PLEASE_SELECT_A_DEVICE, \
     \
-    PLEASE_SELECT_AT_LEAST_ONE_PACKAGE_TO_UNINSTALL, \
+    PLEASE_SELECT_AT_LEAST_ONE_PACKAGE, \
     \
     UNINSTALL_THESE_PACKAGES, \
     CANCELLED, \
@@ -161,8 +161,8 @@ DICT = {
         EN: "Please Select a Device",
         CH: "请选择一个设备"
     },
-    PLEASE_SELECT_AT_LEAST_ONE_PACKAGE_TO_UNINSTALL: {
-        EN: "Please Select at Least One Package to Uninstall",
+    PLEASE_SELECT_AT_LEAST_ONE_PACKAGE: {
+        EN: "Please Select at Least One Package",
         CH: "请至少选择一个包"
     },
     UNINSTALL_THESE_PACKAGES: {
