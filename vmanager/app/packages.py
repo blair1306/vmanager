@@ -48,7 +48,7 @@ def build_packages_frame(master, vm_id, *args, **kwargs):
     """
     view = packages_view(master, vm_id, *args, **kwargs)
     view.controller = Controller(view.listbox,
-                            view.install_button, view.uninstall_button, view.refresh_button, view, *args, **kwargs)
+                            view.install_button, view.uninstall_button, view.refresh_button, view, vm_id)
     return view
 
 
@@ -106,6 +106,8 @@ class Controller(object):
         @param _vm_id: id of the vm whose packages are to be managed.
         @param title: the title to be configured.
         """
+        self._vm_id = vm_id
+
         self._model = create_package_listbox(vm_id, _listbox)
 
         # Some gui show popup relative to it's parent and if it's parent isn't specified, it will show
@@ -134,7 +136,7 @@ class Controller(object):
         """
         Opens a new window to let user to select from a list of packages to install.
         """
-        selected_apk_files = file_list_window().get()
+        selected_apk_files = file_list_window(self._vm_id).get()
         logger.debug('Selected apk files:\n%s' % selected_apk_files)
 
         if not selected_apk_files:

@@ -4,6 +4,7 @@ from __future__ import absolute_import
 
 import socket
 import re
+import errno
 
 from .packet import create_status, create_status_all, create_devices
 from .packet import create_restart, create_install, create_install_all
@@ -12,8 +13,11 @@ from .packet import send_packet, read_packets, get_data
 from .packet import check_header
 from .packet import Header
 
+from .exceptions import VmshederServerNotFound, VmshederServerInternalError, VmshederServerRefused
 
-host = "192.168.31.188"
+
+# Default host and port
+host = 'localhost'
 port = 5895
 
 
@@ -29,19 +33,6 @@ def set_host_n_port(_host, _port):
 
     host = _host
     port = _port
-
-
-class VMShederException(Exception):
-    pass
-
-
-class VMNotFound(VMShederException):
-    pass
-
-
-class VMIsAlive(VMShederException):
-    """Raise when try to restart a vm that's alive."""
-    pass
 
 
 class VMStatus(object):
@@ -74,7 +65,13 @@ def _connect():
     sock.settimeout(5)     # 5 secs
     address = (host, port)
 
-    sock.connect(address)
+    try:
+        sock.connect(address)
+    except socket.error as serror:
+        if serror.errno == errno.ECONNREFUSED:
+            raise VmshederServerRefused('Connection Refused.')
+        else:
+            raise serror    # Not of our interest.
 
     return sock
 
@@ -84,6 +81,12 @@ def _send_and_read_finally_close(sock, packet):
     try:
         send_packet(sock, packet)
         packets = read_packets(sock)
+    except socket.error as serror:
+        if serror.errno == errno.ECONNABORTED or serror.errno == errno.ECONNRESET:
+            raise VmshederServerInternalError('Connection corrupted.')
+        else:
+            raise serror
+
     finally:
         sock.close()
 

@@ -1,13 +1,6 @@
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
+"""
+"""
+
 
 from setuptools import setup
 

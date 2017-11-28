@@ -80,7 +80,12 @@ TEXTS = \
     RESOLUTION, \
     RAM_SIZE_IN_GB, \
     STATUS, \
-        = range(29)  # Increase this number everytime when adding new items to the list.
+    \
+    CHECK_CONNECTION, \
+    UNABLE_TO_CONNECT_TO, \
+    ERROR_MESSAGE, \
+    SERVER_ERROR, \
+        = range(33)  # Increase this number everytime when adding new items to the list.
         # TODO: there must be a better way than this.
 
 
@@ -201,5 +206,21 @@ DICT = {
     STATUS: {
         EN: "Status",
         CH: "状态"
+    },
+    CHECK_CONNECTION: {
+        EN: "Please Check Your Network Connection.",
+        CH: "请检查你的网络"
+    },
+    UNABLE_TO_CONNECT_TO: {
+        EN: "Unable to Connect to",
+        CH: "无法连接到"
+    },
+    ERROR_MESSAGE: {
+        EN: "Error Message",
+        CH: "错误信息"
+    },
+    SERVER_ERROR: {
+        EN: "Server Error",
+        CH: "服务器错误"
     },
 }

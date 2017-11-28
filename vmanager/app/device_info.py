@@ -22,6 +22,8 @@ from .packages import packages_window
 
 from ..vmsheder import devices, get_status, VMStatus
 from ..vmsheder import get_resolution, get_RAM
+from ..vmsheder import VmshederServerInternalError, VmshederServerRefused
+from .vmsheder_exception_handler import catch_display_vmsheder_exception
 
 import logging
 # from logging.config import fileConfig
@@ -43,7 +45,7 @@ def device_info_window():
     A ready to use window
     """
     window = create_window(TITLE)
-    view = build_device_info_frame(window)
+    build_device_info_frame(window)
 
     return window
 
@@ -194,13 +196,14 @@ class DeviceListBox(object):
         the list.
         """
         indexes = self._listbox.get_selected_index_list()
-        logger.debug("vm_id under current selection: %s" % indexes)
 
         if not indexes:
             id = None
         else:
             index = indexes[0]
             id = self._device_info_list[index].id
+
+        logger.debug("vm_id under current selection: %s" % id)
 
         return id
 
@@ -255,14 +258,18 @@ class Controller(object):
         self.refresh_device_list(False)
 
     def refresh_device_list(self, popup=True):
-        # Show a pop up message indicating that refresh is done.
-        self._model.update_device_info_list()
+        self._refresh_device_list()
 
         # Select the default one (the first one if there is one)
         self._model.select_default()
 
+        # Show a pop up message indicating that refresh is done.
         if popup:
             show_info(get_text(DONE), parent=self._window)
+    
+    @catch_display_vmsheder_exception
+    def _refresh_device_list(self):
+        self._model.update_device_info_list()
 
     def reboot_device(self):
         logger.debug("device selected: %s" % self.selected_id)

@@ -10,3 +10,5 @@ from .api import cmd
 from .api import get_resolution, get_RAM
 from .api import list_installed_packages
 from .api import list_apk
+
+from .exceptions import VmshederServerRefused, VmshederServerInternalError

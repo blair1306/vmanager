@@ -7,3 +7,5 @@
 # logger = logging.getLogger(__name__)
 #
 # logger.debug('initing')
+
+from .main import main

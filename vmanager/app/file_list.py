@@ -1,6 +1,6 @@
 """
 This module provides a window for selecting from a list of files.
-This file list window returns a list files selected when Select Button is hit.
+This file list window returns a list of files selected when Select Button is hit and destroy itself.
 """
 
 
