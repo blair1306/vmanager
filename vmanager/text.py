@@ -85,7 +85,8 @@ TEXTS = \
     UNABLE_TO_CONNECT_TO, \
     ERROR_MESSAGE, \
     SERVER_ERROR, \
-        = range(33)  # Increase this number everytime when adding new items to the list.
+    DOUBLE_CLICK_ON_DEVICE_LIST, \
+        = range(34)  # Increase this number everytime when adding new items to the list.
         # TODO: there must be a better way than this.
 
 
@@ -222,5 +223,9 @@ DICT = {
     SERVER_ERROR: {
         EN: "Server Error",
         CH: "服务器错误"
+    },
+    DOUBLE_CLICK_ON_DEVICE_LIST: {
+        EN: "Duble Click on Device List to Open",
+        CH: "双击设备列表来打开"
     },
 }

@@ -35,6 +35,15 @@ def set_host_n_port(_host, _port):
     port = _port
 
 
+def init(_host=host, _port=port):
+    """ Init the vmsheder module.
+    Raise exceptions if init fails.
+    """
+    set_host_n_port(_host, _port)
+
+    get_status_all()
+
+
 class VMStatus(object):
     ALIVE = 0
     FBV_IS_DEAD = 1
@@ -46,6 +55,30 @@ class VMStatus(object):
 
         assert VMStatus.ALIVE <= _status <= VMStatus.DEAD
         self._status = _status
+    
+    @staticmethod
+    def alive():
+        return VMStatus(VMStatus.ALIVE)
+
+    @staticmethod
+    def is_alive(vmstatus):
+        return vmstatus.status == VMStatus.ALIVE
+
+    @staticmethod
+    def fbv_is_dead():
+        return VMStatus(VMStatus.FBV_IS_DEAD)
+
+    @staticmethod
+    def is_fbv_is_dead(vmstatus):
+        return vmstatus.status == VMStatus.FBV_IS_DEAD
+
+    @staticmethod
+    def dead():
+        return VMStatus(VMStatus.DEAD)
+
+    @staticmethod
+    def is_dead(vmstatus):
+        return vmstatus.status == VMStatus.DEAD
 
     def __repr__(self):
         return {
@@ -99,11 +132,11 @@ def get_status(vm_id):
     reason, _, fbv_connected, _ = get_detailed_status(vm_id)
     if reason == "OK":
         if fbv_connected:
-            status = VMStatus.ALIVE
+            status = VMStatus(VMStatus.ALIVE)
         else:
-            status = VMStatus.FBV_IS_DEAD
+            status = VMStatus(VMStatus.FBV_IS_DEAD)
     else:
-        status = VMStatus.DEAD
+        status = VMStatus(VMStatus.DEAD)
 
     return status
 

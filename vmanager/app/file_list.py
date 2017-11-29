@@ -9,7 +9,7 @@ from ..ui import create_ret_window
 from ..ui import bind_click
 from ..ui import show_info, show_error, show_warning
 
-from .text import get_text, LIST_OF_FILE, SELECT, CANCEL, CANCELLED, DONE
+from ..text import get_text, LIST_OF_FILE, SELECT, CANCEL, CANCELLED, DONE
 
 from .dynamic_listbox import DynamicListBox
 

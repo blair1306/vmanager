@@ -1,9 +1,9 @@
 """ This module provides some vmsheder specific exceptions handler.
 """
-from ..vmsheder import VmshederServerRefused, VmshederServerInternalError
+from ..vmsheder import VmshederServerRefused, VmshederServerInternalError, VmshederException
 from ..ui import show_error
-from .text import get_text, UNABLE_TO_CONNECT_TO, CHECK_CONNECTION, SERVER_ADDRESS
-from .text import ERROR_MESSAGE, SERVER_ERROR
+from ..text import get_text, UNABLE_TO_CONNECT_TO, CHECK_CONNECTION, SERVER_ADDRESS
+from ..text import ERROR_MESSAGE, SERVER_ERROR
 
 import logging
 from ..debug import logging_default_configure
@@ -27,17 +27,7 @@ def catch_display_vmsheder_exception(func):
 
         try:
             func(self)
-        except VmshederServerRefused as e:
-            message = "%s Vmsheder %s, %s. %s: %s" % \
-                (
-                    get_text(UNABLE_TO_CONNECT_TO), get_text(SERVER_ADDRESS), get_text(CHECK_CONNECTION),
-                    (get_text(ERROR_MESSAGE)), repr(e)
-                )
-            show_error(message, parent=window)
-        except VmshederServerInternalError as e:
-            message = "Vmsheder %s. %s: %s" % \
-                (
-                    get_text(SERVER_ERROR), get_text(ERROR_MESSAGE), repr(e)
-                )
+        except VmshederException as e:
+            show_error(str(e), window)
 
     return wrapper

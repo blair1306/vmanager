@@ -4,12 +4,12 @@ This module provides the device management window.
 
 from ..ui import *
 
-from .text import get_text, set_ch, set_en, set_lan, get_lan
-from .text import LIST_OF_DEVICES, PLEASE_SELECT_A_DEVICE, \
+from ..text import get_text, set_ch, set_en, set_lan, get_lan
+from ..text import LIST_OF_DEVICES, PLEASE_SELECT_A_DEVICE, \
                   REFRESH, REBOOT_DEVICE, SELECT
-from .text import DEVICE_ID, RESOLUTION, RAM_SIZE_IN_GB, STATUS
-from .text import get_text, DONE
-from .text import DEVICE_ADMINISTRATION
+from ..text import DEVICE_ID, RESOLUTION, RAM_SIZE_IN_GB, STATUS
+from ..text import get_text, DONE
+from ..text import DEVICE_ADMINISTRATION, DOUBLE_CLICK_ON_DEVICE_LIST
 
 from ..debug import set_trace, logging_default_configure
 
@@ -77,6 +77,7 @@ def device_info_view(master):
 
     # Just to give a little extra space between the title and the listbox.
     create_label(master)
+    create_label(master, text=get_text(DOUBLE_CLICK_ON_DEVICE_LIST))
 
     view.listbox = create_listbox(master)
     autoresize(view.listbox, "width")

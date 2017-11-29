@@ -2,20 +2,21 @@
 This module provides a window that is used to manage all packages installed on a vm.
 """
 
+import logging
+
 from ..ui import create_frame, create_label, create_button, create_entry
 from ..ui import create_listbox, create_ms_listbox, create_scrollbar, create_toplevel
 from ..ui import bind_click, set_text
 from ..ui import show_info, show_warning, show_error, autoresize, ask_ok_cancel
 from ..ui import create_window
 
-from .text import get_text
-from .text import INSTALL, UNINSTALL, REFRESH, DEVICE_SELECTED, DONE, PLEASE_SELECT_AT_LEAST_ONE_PACKAGE
-from .text import INSTALL_THESE_PACKAGES, CANCELLED, UNINSTALL_THESE_PACKAGES
-from .text import PACKAGE_MANAGEMENT
+from ..text import get_text
+from ..text import INSTALL, UNINSTALL, REFRESH, DEVICE_SELECTED, DONE, PLEASE_SELECT_AT_LEAST_ONE_PACKAGE
+from ..text import INSTALL_THESE_PACKAGES, CANCELLED, UNINSTALL_THESE_PACKAGES
+from ..text import PACKAGE_MANAGEMENT
 
-from ..vmsheder import list_installed_packages
+from ..vmsheder import list_installed_packages, install
 
-import logging
 from ..debug import logging_default_configure
 
 from .dynamic_listbox import DynamicListBox
@@ -145,6 +146,7 @@ class Controller(object):
 
         if ask_ok_cancel('%s?: %s' % (get_text(INSTALL_THESE_PACKAGES), selected_apk_files), parent=self._window):
             # TODO: change _window to _view wherever possible.
+            install(self._vm_id, selected_apk_files)
             show_info(get_text(DONE), parent=self._window)
         else:
             show_info(get_text(CANCELLED), parent=self._window)
