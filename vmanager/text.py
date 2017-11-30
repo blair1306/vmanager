@@ -9,6 +9,15 @@ LANS = [EN, CH]
 lan = CH
 
 
+def init(ch=True):
+    """Init this module.
+    """
+    if ch:
+        set_ch()
+    else:
+        set_en()
+
+
 def get_text(text, _lan=None):
     if _lan is None:
         return DICT.get(text).get(lan)
@@ -85,7 +94,7 @@ TEXTS = \
     UNABLE_TO_CONNECT_TO, \
     ERROR_MESSAGE, \
     SERVER_ERROR, \
-    DOUBLE_CLICK_ON_DEVICE_LIST, \
+    DOUBLE_CLICK_ON_DEVICE, \
         = range(34)  # Increase this number everytime when adding new items to the list.
         # TODO: there must be a better way than this.
 
@@ -224,8 +233,8 @@ DICT = {
         EN: "Server Error",
         CH: "服务器错误"
     },
-    DOUBLE_CLICK_ON_DEVICE_LIST: {
-        EN: "Duble Click on Device List to Open",
-        CH: "双击设备列表来打开"
+    DOUBLE_CLICK_ON_DEVICE: {
+        EN: "Duble Click on Device to Open",
+        CH: "双击设备来打开"
     },
 }

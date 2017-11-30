@@ -34,8 +34,10 @@ class WrongDataLength(DataException):
     pass
 
 
-def create_packet(type, data):
-    # TODO: will using this more generic one be better?
+def create(type, data):
+    # TODO: Convert the create_* functions to use create.
+    assert Header.TYPE_NONE <= type <= Header.TYPES
+
     n_bytes = len(data)
     header = Header(type, n_bytes)
     data = Data(data)
@@ -133,9 +135,23 @@ def create_cmd(vm_id, cmd):
     header = Header(Header.TYPE_SYS_CMD, n_bytes)
     data = Data(data)
 
-    
-
     return Packet(header, data)
+
+
+def create_list_apk():
+    data = b''
+    type = Header.TYPE_APK_LIST
+
+    return create(type, data)
+
+
+def create_list_installed_packages(vm_id):
+    assert isinstance(vm_id, bytes)
+
+    data = vm_id
+    type = Header.TYPE_PKG_LIST
+
+    return create(type, data)
 
 
 def send_packet(sock, packet):
@@ -235,8 +251,15 @@ class Header(object):
     TYPE_INSTALL_ALL = 9
     TYPE_UNINSTALL = 10
     TYPE_UNINSTALL_ALL = 11
+    TYPE_APK_LIST = 12
+    TYPE_APPMNG_DEBUG = 13
+    TYPE_CONFIG = 14
+    TYPE_QEMU_IMG = 15
+    TYPE_SNAPSHOT = 16
+    TYPE_TEMPLATE = 17
+    TYPE_PKG_LIST = 18
 
-    TYPES = range(TYPE_UNINSTALL_ALL+1)
+    TYPES = range(TYPE_PKG_LIST+1)     # TODO: Change this everytime a new type is added or find a better way
 
     def __init__(self, type=TYPE_NONE, n_bytes=0):
         assert type in Header.TYPES
@@ -249,14 +272,28 @@ class Header(object):
         self.n_bytes = n_bytes
 
     def __repr__(self):
-        type = {
-            Header.TYPE_NONE: "none",
+        t = {
+            Header.TYPE_NONE: "done",
+            Header.TYPE_DONE: "none",
+            Header.TYPE_SYS_CMD: "sys cmd",
             Header.TYPE_STATUS: "status",
+            Header.TYPE_STATUS_ALL: "status all",
             Header.TYPE_RESTART: "restart",
-            Header.TYPE_DEVICES: "devices"
+            Header.TYPE_RESTART_ALL: "restart all",
+            Header.TYPE_DEVICES: "devices",
+            Header.TYPE_INSTALL: "install",
+            Header.TYPE_INSTALL_ALL: "install all",
+            Header.TYPE_UNINSTALL: "uninstall",
+            Header.TYPE_UNINSTALL_ALL: "uninstall all",
+            Header.TYPE_APK_LIST: "apk list",
+            Header.TYPE_APPMNG_DEBUG: "appmng debug",
+            Header.TYPE_CONFIG: "config",
+            Header.TYPE_QEMU_IMG: "qemu img",
+            Header.TYPE_SNAPSHOT: "snapshot",
+            Header.TYPE_TEMPLATE: "template",
         }.get(self.type, "unknown")
 
-        return "header: type (%s), length (%s)" % (type, self.n_bytes)
+        return "header: type (%s), length (%s)" % (t, self.n_bytes)
 
     def __len__(self):
         return Header.SIZE      # the len of header is always 4

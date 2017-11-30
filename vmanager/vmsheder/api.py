@@ -9,38 +9,21 @@ import errno
 from .packet import create_status, create_status_all, create_devices
 from .packet import create_restart, create_install, create_install_all
 from .packet import create_uninstall, create_uninstall_all, create_cmd
+from .packet import create_list_apk, create_list_installed_packages
 from .packet import send_packet, read_packets, get_data
 from .packet import check_header
 from .packet import Header
 
 from .exceptions import VmshederServerNotFound, VmshederServerInternalError, VmshederServerRefused
+from .common import set_host_n_port
+from .common import g_host, g_port      # TODO: this is a structural problem of this module
 
 
-# Default host and port
-host = 'localhost'
-port = 5895
-
-
-def get_host_n_port():
-    """Get the current host and port in use."""
-    return host, port
-
-
-def set_host_n_port(_host, _port):
-    # TODO: assertions
-    global host
-    global port
-
-    host = _host
-    port = _port
-
-
-def init(_host=host, _port=port):
-    """ Init the vmsheder module.
+def init(_host=None, _port=None):
+    """ Init the vmsheder module. Use the default ones if no arguments is supplied.
     Raise exceptions if init fails.
     """
     set_host_n_port(_host, _port)
-
     get_status_all()
 
 
@@ -96,7 +79,7 @@ def _connect():
     """Connect to the vmsheder host and return the socket"""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(5)     # 5 secs
-    address = (host, port)
+    address = (g_host, g_port)
 
     try:
         sock.connect(address)
@@ -161,9 +144,8 @@ def get_detailed_status(vm_id):
     data = get_data(packets)
 
     pattern = r"vm_id=(\d+)&reason=(\w+)&state=(\w+)&fbv_connected=(\w+)&app_connected=(\w+)"
-    match = re.match(pattern, data)
 
-    _id, reason, state, _fbv_connected, _app_connected = match.groups()
+    _id, reason, state, _fbv_connected, _app_connected = re.match(pattern, data).groups()
     assert _id == vm_id
 
     fbv_connected = _is_true(_fbv_connected)
@@ -196,7 +178,7 @@ def get_status_all():
 
 
 def devices():
-    """Get the device list currently running on the host."""
+    """Get the device list currently running on the g_host."""
     packet = create_devices()
     sock = _connect()
 
@@ -315,14 +297,14 @@ def list_installed_packages(vm_id,  third_party=True):
     List the packages installed on this vm.
     @param third_party: third party packages only, which excludes pre-installed system packages etc.
     """
-    # TODO: Implement the *real* stuff
-    installed_packages = [
-        "com.chessking.android.learn.ctart4",
-        "com.netease.cloudmusic",
-        "tv.danmaku.bili",
-    ]
+    # TODO: Implement third_party related stuff.
+    packet = create_list_installed_packages(vm_id)
 
-    return installed_packages
+    sock = _connect()
+    packets = _send_and_read_finally_close(sock, packet)
+    data = get_data(packets)
+
+    return data
 
 
 def list_apk():
@@ -330,11 +312,13 @@ def list_apk():
     list the apk files on the server that is to be installed.
     """
     # TODO: The real stuff.
-    apk_list = [
-        'google',
-        'baidu',
-        'youtube',
-        'youku',
-    ]
+    packet= create_list_apk()
+
+    sock = _connect()
+    packets = _send_and_read_finally_close(sock, packet)
+
+    data = get_data(packets)
+
+    apk_list = data.splitlines()        # TODO: 2017.11.30.
 
     return apk_list

@@ -9,7 +9,7 @@ from ..text import LIST_OF_DEVICES, PLEASE_SELECT_A_DEVICE, \
                   REFRESH, REBOOT_DEVICE, SELECT
 from ..text import DEVICE_ID, RESOLUTION, RAM_SIZE_IN_GB, STATUS
 from ..text import get_text, DONE
-from ..text import DEVICE_ADMINISTRATION, DOUBLE_CLICK_ON_DEVICE_LIST
+from ..text import DEVICE_ADMINISTRATION, DOUBLE_CLICK_ON_DEVICE
 
 from ..debug import set_trace, logging_default_configure
 
@@ -27,8 +27,6 @@ from .vmsheder_exception_handler import catch_display_vmsheder_exception
 
 import logging
 # from logging.config import fileConfig
-
-from .. import TESTING
 
 # fileConfig('logging_config.ini')
 
@@ -77,7 +75,7 @@ def device_info_view(master):
 
     # Just to give a little extra space between the title and the listbox.
     create_label(master)
-    create_label(master, text=get_text(DOUBLE_CLICK_ON_DEVICE_LIST))
+    create_label(master, text=get_text(DOUBLE_CLICK_ON_DEVICE))
 
     view.listbox = create_listbox(master)
     autoresize(view.listbox, "width")
@@ -97,10 +95,7 @@ def get_device_info(vm_id):
     Get the device info of a given vm_id.
     Return the DeviceInfo object of the given vm_id.
     """
-    if TESTING:
-        return DeviceInfo(vm_id)
-
-    # Get the real info through vmsheder.
+    # Get the info through vmsheder.
     status, resolution, ram_gb = get_status(vm_id), get_resolution(vm_id), get_RAM(vm_id)
     
     return DeviceInfo(vm_id, resolution, ram_gb, status)
@@ -110,7 +105,8 @@ def get_all_device_infos():
     """
     Get the list of device info of all vms on this machine.
     """
-    device_id_list = devices() if not TESTING else ['5555', '5557']
+    device_id_list = devices()
+
     all_device_info_list = []
 
     for _id in device_id_list:

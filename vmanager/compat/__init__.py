@@ -26,4 +26,3 @@ if is_py3:
     basestring = (str, bytes)
     numeric_types = (int, float)
     integer_types = (int,)
-
