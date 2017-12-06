@@ -1,3 +1,9 @@
+"""
+This module provides the api for use outside of this module.
+
+"""
+
+
 from __future__ import absolute_import
 
 # Get info about the status of a virtual machine running in the remote server
@@ -304,14 +310,15 @@ def list_installed_packages(vm_id,  third_party=True):
     packets = _send_and_read_finally_close(sock, packet)
     data = get_data(packets)
 
-    return data
+    installed_packages = data.splitlines()
+
+    return installed_packages
 
 
 def list_apk():
     """
     list the apk files on the server that is to be installed.
     """
-    # TODO: The real stuff.
     packet= create_list_apk()
 
     sock = _connect()

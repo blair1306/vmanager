@@ -1,5 +1,7 @@
-# the protocol used to communicate between this program as the client side and a remote host as the server side running
-# the vmsheder server.
+"""the protocol used to communicate between this program as the client side and a remote host as the server side running
+the vmsheder server.
+"""
+
 from __future__ import absolute_import
 
 from ..compat import bytes

@@ -1,11 +1,16 @@
 # coding: utf-8
 
+"""
+This module provides an interface for getting text string of a specific language.
+Be it chinese, english, etc.
+"""
+
 
 EN = "en"
 CH = "ch"
 LANS = [EN, CH]
 
-# Default language is english.
+# Default language is chinese.
 lan = CH
 
 

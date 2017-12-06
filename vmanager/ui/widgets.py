@@ -1,3 +1,7 @@
+""" Common widgets with custom extended abilities.
+"""
+
+
 from .compat import tk, ttk
 
 

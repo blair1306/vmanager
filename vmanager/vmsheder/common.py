@@ -1,7 +1,11 @@
+""" Some global stuff shared among vmsheder module.
+"""
+
+
 SERVER_NAME = 'Vmsheder'
 
 # Default host and port
-g_host = '192.168.31.58'
+g_host = '192.168.31.188'
 g_port = 5895
 
 

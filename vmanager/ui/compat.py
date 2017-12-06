@@ -1,3 +1,7 @@
+""" python2 python3 compatibility layer.
+"""
+
+
 from ..compat import is_py2, is_py3
 
 

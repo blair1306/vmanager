@@ -1,5 +1,5 @@
 """
-This module provides a window that is used to manage all packages installed on a vm.
+This module provides a window that is used to manage the packages installed on a vm.
 """
 
 import logging

@@ -1,3 +1,7 @@
+""" The main function.
+"""
+
+
 from ..ui import mainloop, show_error
 from .device_info import device_info_window
 from ..vmsheder import VmshederException

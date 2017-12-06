@@ -1,3 +1,7 @@
+""" The adapter of tkinter module, which gives tkinter widgets and windows etc. default values.
+"""
+
+
 from .compat import tk, ttk
 
 from .widgets import Frame, ListBox, Toplevel
@@ -70,6 +74,8 @@ def create_scrollbar(master, *args, **kwargs):
 class TkinterAdapter(object):
     """
     Factory class used to give tkinter widgets default values .
+    TODO: I found that this class is totally uneccessary as it just provides default values
+    TODO: for those widgets which can be easily achieved without using a class.
     """
     @staticmethod
     def create(name, master, left=False, *args, **kwargs):

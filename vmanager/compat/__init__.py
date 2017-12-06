@@ -1,4 +1,5 @@
-# This module provides testing for python2/python3
+"""Major python2 python3 compatibility stuff.
+"""
 
 import sys
 

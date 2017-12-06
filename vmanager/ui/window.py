@@ -1,5 +1,6 @@
-# This module provides a window abstraction over tkinter's gui system.
-# Just call create_window() whereever needed. and mainloop() at the end of the program.
+"""This module provides a window abstraction over tkinter's window system.
+just call create_window() whereever needed. and mainloop() at the end of the program.
+"""
 
 from .compat import tk, ttk, tkFont
 from ..compat import bytes

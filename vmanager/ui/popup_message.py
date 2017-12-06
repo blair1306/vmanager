@@ -1,3 +1,6 @@
+""" Popup messages used to show info in a graphic way.
+"""
+
 from .compat import MessageBox
 
 import logging
