@@ -5,7 +5,6 @@
 from .compat import tk, ttk
 
 from .widgets import Frame, ListBox, Toplevel
-from .app import App
 
 import logging
 from ..debug import logging_default_configure
@@ -242,9 +241,9 @@ def autoresize(widget, _property):
             # Is this the trick of autoresizing in tk?
             resize(widget, width=0)
             return
-    
+
     logger.debug("Trying to resize a unsupported widget: %s" % repr(widget))
-    
+
 
 def set_text(widget, text=""):
     """

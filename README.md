@@ -1,16 +1,30 @@
 Android Virtual Machine Manager
-===========================
+===============================
 
 This is a simple GUI program for managing android virtual device (works on physical devices as well) running on a host machine.
 
-Usage: On the server side, before starting server for the first time, you have to run the script to generate the private and public keys needed by the server. By
+Usage:
 
 > make
 
-After those keys are generated, start the server.
+this will show a bunch of help messages.
 
-> python android_device_manager.py server
+> make help
 
-Then you can start the GUI client.
+the same as the one above.
 
-> python android_device_manager.py
+> make run
+
+run this program
+
+> make test
+
+run tests for python2
+
+> make test2
+
+the same as the one above
+
+> make test3
+
+run tests for python3
